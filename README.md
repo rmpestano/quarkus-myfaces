@@ -3,7 +3,7 @@
 Quarkus myfaces native build issue: https://groups.google.com/forum/#!topic/quarkus-dev/lLRjtXcuXKQ
 
 
-## STeps to reproduce the issue
+## Steps to reproduce the issue
 
 1 - Install myfaces:
 
