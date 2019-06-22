@@ -1,22 +1,36 @@
 # quarkus-myfaces
 
-Prototype implementation of a JSF / MyFaces Core module for Quarkus. 
-It's completely based on MyFaces 3.x as some changes were required.
+Quarkus myfaces native build issue: https://groups.google.com/forum/#!topic/quarkus-dev/lLRjtXcuXKQ
 
-## Differences compared to a normal Servlet container
-- You need to put your views under src/main/resources/META-INF/resources as Quarkus doesn't create a WAR and src/main/webapp is ignored!
-- Session replication / passivation / clustering is not supported by Quarkus
 
-## How to try it?
+## STeps to reproduce the issue
 
-### Build MyFaces (SNAPSHOTS may not be up to date)
-- https://github.com/apache/myfaces.git 
-- mvn clean install -DskipTests
+1 - Install myfaces:
 
-### Build quarkus-myfaces
-- cd quarkus-myfaces
-- mvn clean install
+```
+git clone https://github.com/rmpestano/myfaces.git && cd myfaces && clean install -DskipTests 
+``` 
 
-### Run showcase
-- cd quarkus-myfaces-showcase
-- mvn compile quarkus:dev
+2 - Install quarkus myfaces `mvn clean install`
+
+3 - run the quarkus-myfaces-showcase  native binary:
+
+```
+mvn clean package -Pnative -Dnative-image.docker-build=true && ./target/quarkus-myfaces-showcase-1.0-SNAPSHOT-runner
+
+```
+
+4 - Access `http://localhost:8080/index.xhtml
+
+5 - The following error should be raised:
+
+```
+No Factories configured for this Application. This happens if the faces-initialization does not work at all - make sure that you properly include all configuration settings necessary for a basic faces application and that all the necessary libs are included. Also check the logging output of your web application and your container for any exceptions! If you did that and find nothing, the mistake might be due to the fact that you use some special web-containers which do not support registering context-listeners via TLD files and a context listener is not setup in your web.xml. A typical config looks like this; <listener> <listener-class>org.apache.myfaces.webapp.StartupServletContextListener</listener-class> </listener> 
+```
+
+
+> Full logs can be accessed in `/tmp/debug.log`
+
+ 
+
+ 

@@ -28,10 +28,8 @@ public class QuarkusServletContextListener implements ServletContextListener {
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
-
         FacesConfigBeanHolder facesConfigBeanHolder = CDI.current().select(FacesConfigBeanHolder.class).get();
         facesConfigBeanHolder.setFacesConfigVersion(FacesConfig.Version.JSF_2_3);
-
     }
 
     @Override

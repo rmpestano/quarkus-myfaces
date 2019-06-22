@@ -1,6 +1,7 @@
 package io.quarkus.myfaces.showcase.view;
 
 import java.io.Serializable;
+import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
 import javax.faces.application.FacesMessage;
 import javax.faces.context.FacesContext;
@@ -23,6 +24,7 @@ public class LazyView implements Serializable {
 
     @PostConstruct
     public void init() {
+        Logger.getLogger(getClass().getName()).info("LazyView postConstruct!");
         lazyModel = new LazyCarDataModel(service.createCars(200));
     }
 

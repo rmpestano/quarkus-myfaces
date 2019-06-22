@@ -9,7 +9,7 @@
     <name>Quarkus - MyFaces - Showcase</name>
 
     <properties>
-        <quarkus.version>0.16.1</quarkus.version>
+        <quarkus.version>0.17.0</quarkus.version>
         <failsafe.version>2.22.0</failsafe.version>
         <surefire.version>2.22.0</surefire.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -33,6 +33,11 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-myfaces</artifactId>
+            <version>${quarkus.version}</version>
+        </dependency>
+         <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-undertow</artifactId>
             <version>${quarkus.version}</version>
         </dependency>
         <dependency> 
@@ -76,6 +81,9 @@
                         </goals>
                     </execution>
                 </executions>
+                <!--<configuration>
+                    <additionalBuildArgs>-H:IncludeResources=.*\.xml</additionalBuildArgs>
+                </configuration>-->
             </plugin>
         </plugins>
     </build>

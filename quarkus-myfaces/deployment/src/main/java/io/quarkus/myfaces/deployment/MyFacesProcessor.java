@@ -15,14 +15,19 @@
  */
 package io.quarkus.myfaces.deployment;
 
+import static io.quarkus.deployment.annotations.ExecutionTime.STATIC_INIT;
+
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Optional;
 
+import javax.faces.FactoryFinder;
 import javax.faces.application.ProjectStage;
 import javax.faces.application.StateManager;
 import javax.faces.component.FacesComponent;
 import javax.faces.component.behavior.FacesBehavior;
 import javax.faces.convert.FacesConverter;
+import javax.faces.event.ExceptionQueuedEvent;
 import javax.faces.push.PushContext;
 import javax.faces.render.FacesBehaviorRenderer;
 import javax.faces.render.FacesRenderer;
@@ -38,6 +43,7 @@ import org.apache.myfaces.cdi.config.FacesConfigBeanHolder;
 import org.apache.myfaces.cdi.model.FacesDataModelClassBeanHolder;
 import org.apache.myfaces.cdi.view.ViewScopeBeanHolder;
 import org.apache.myfaces.cdi.view.ViewTransientScoped;
+import org.apache.myfaces.config.FacesConfigurator;
 import org.apache.myfaces.config.MyfacesConfig;
 import org.apache.myfaces.config.annotation.CdiAnnotationProviderExtension;
 import org.apache.myfaces.config.element.NamedEvent;
@@ -47,11 +53,19 @@ import org.apache.myfaces.push.cdi.WebsocketApplicationBean;
 import org.apache.myfaces.push.cdi.WebsocketChannelTokenBuilderBean;
 import org.apache.myfaces.push.cdi.WebsocketSessionBean;
 import org.apache.myfaces.push.cdi.WebsocketViewBean;
+import org.apache.myfaces.renderkit.ErrorPageWriter;
+import org.apache.myfaces.spi.impl.DefaultWebConfigProviderFactory;
+import org.apache.myfaces.util.ClassUtils;
 import org.apache.myfaces.webapp.FaceletsInitilializer;
+import org.apache.myfaces.webapp.MyFacesContainerInitializer;
 import org.apache.myfaces.webapp.StartupServletContextListener;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.jandex.DotName;
+
+import com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl;
+import com.sun.org.apache.xpath.internal.functions.FuncLocalPart;
+import com.sun.org.apache.xpath.internal.functions.FuncNot;
 
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
 import io.quarkus.arc.deployment.BeanDefiningAnnotationBuildItem;
@@ -59,10 +73,13 @@ import io.quarkus.arc.deployment.ContextRegistrarBuildItem;
 import io.quarkus.arc.processor.ContextRegistrar;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
-import io.quarkus.deployment.annotations.ExecutionTime;
 import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
+import io.quarkus.deployment.builditem.substrate.ReflectiveClassBuildItem;
+import io.quarkus.deployment.builditem.substrate.RuntimeReinitializedClassBuildItem;
+import io.quarkus.deployment.builditem.substrate.ServiceProviderBuildItem;
+import io.quarkus.deployment.builditem.substrate.SubstrateResourceBuildItem;
 import io.quarkus.myfaces.runtime.MyFacesTemplate;
 import io.quarkus.myfaces.runtime.QuarkusServletContextListener;
 import io.quarkus.myfaces.runtime.scopes.QuarkusFacesScopeContext;
@@ -74,6 +91,7 @@ import io.quarkus.runtime.LaunchMode;
 import io.quarkus.runtime.configuration.ProfileManager;
 import io.quarkus.undertow.deployment.ListenerBuildItem;
 import io.quarkus.undertow.deployment.ServletBuildItem;
+import io.quarkus.undertow.deployment.ServletContainerInitializerBuildItem;
 import io.quarkus.undertow.deployment.ServletInitParamBuildItem;
 
 class MyFacesProcessor {
@@ -223,7 +241,7 @@ class MyFacesProcessor {
     }
 
     @BuildStep
-    @Record(ExecutionTime.STATIC_INIT)
+    @Record(STATIC_INIT)
     void buildAnnotationProviderIntegration(MyFacesTemplate template, CombinedIndexBuildItem combinedIndex) throws IOException {
 
         for (String clazz : BEAN_DEFINING_ANNOTATION_CLASSES) {
@@ -233,6 +251,44 @@ class MyFacesProcessor {
                     .forEach(annotation -> template.registerAnnotatedClass(annotation.name().toString(),
                             annotation.target().asClass().name().toString()));
         }
+    }
+
+    @BuildStep
+    void registerForReflection(BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
+        reflectiveClass.produce(
+                new ReflectiveClassBuildItem(false, false, ExceptionQueuedEvent.class, DefaultWebConfigProviderFactory.class,
+                        ErrorPageWriter.class, DocumentBuilderFactoryImpl.class, FuncLocalPart.class, FuncNot.class,
+                        MyFacesContainerInitializer.class, FacesConfigurator.class));
+
+        reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, "javax.faces._FactoryFinderProviderFactory"));
+        reflectiveClass.produce(
+                new ReflectiveClassBuildItem(true, true, ClassUtils.class, FactoryFinder.class));
+
+    }
+
+    @BuildStep
+    void runtimeReinit(BuildProducer<RuntimeReinitializedClassBuildItem> runtimeReinitProducer,
+            BuildProducer<ServletContainerInitializerBuildItem> servletInitproducer,
+            BuildProducer<ServiceProviderBuildItem> serviceProvider) {
+        serviceProvider.produce(new ServiceProviderBuildItem("javax.servlet.ServletContainerInitializer",
+                "org.apache.myfaces.webapp.MyFacesContainerInitializer"));
+        servletInitproducer.produce(
+                new ServletContainerInitializerBuildItem(MyFacesContainerInitializer.class.getName(), new HashSet<>()));
+        runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(MyFacesContainerInitializer.class.getName()));
+        runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(FactoryFinder.class.getName()));
+        //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(FacesConfigurator.class.getName()));
+        //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(StartupServletContextListener.class.getName()));
+
+    }
+
+    @BuildStep
+    void substrateResourceBuildItems(BuildProducer<SubstrateResourceBuildItem> substrateResourceProducer) {
+        substrateResourceProducer
+                .produce(new SubstrateResourceBuildItem("META-INF/maven/org.primefaces/primefaces/pom.properties"));
+        substrateResourceProducer.produce(new SubstrateResourceBuildItem("META-INF/rsc/myfaces-dev-error.xml",
+                "META-INF/rsc/myfaces-dev-debug.xml",
+                "META-INF/rsc/myfaces-dev-error-include.xml", "META-INF/services/javax.servlet.ServletContainerInitializer"));
+
     }
 
     private Optional<String> resolveProjectStage(Config config) {
