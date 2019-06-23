@@ -8,7 +8,7 @@ Quarkus myfaces native build issue: https://groups.google.com/forum/#!topic/quar
 1 - Install myfaces:
 
 ```
-git clone https://github.com/rmpestano/myfaces.git && cd myfaces && clean install -DskipTests 
+git clone https://github.com/rmpestano/myfaces.git && cd myfaces && mvn clean install -DskipTests 
 ``` 
 
 2 - Install quarkus myfaces `mvn clean install`
@@ -20,7 +20,7 @@ mvn clean package -Pnative -Dnative-image.docker-build=true && ./target/quarkus-
 
 ```
 
-4 - Access `http://localhost:8080/index.xhtml
+4 - Access http://localhost:8080/index.xhtml
 
 5 - The following error should be raised:
 
