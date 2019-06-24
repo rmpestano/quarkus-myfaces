@@ -56,14 +56,11 @@ import org.apache.myfaces.context.FacesContextFactoryImpl;
 import org.apache.myfaces.context.PartialViewContextFactoryImpl;
 import org.apache.myfaces.context.servlet.ServletFlashFactoryImpl;
 import org.apache.myfaces.flow.FlowHandlerFactoryImpl;
+import org.apache.myfaces.flow.cdi.FlowBuilderFactoryBean;
 import org.apache.myfaces.flow.cdi.FlowScopeBeanHolder;
 import org.apache.myfaces.lifecycle.ClientWindowFactoryImpl;
 import org.apache.myfaces.lifecycle.LifecycleFactoryImpl;
-import org.apache.myfaces.push.cdi.PushContextFactoryBean;
-import org.apache.myfaces.push.cdi.WebsocketApplicationBean;
-import org.apache.myfaces.push.cdi.WebsocketChannelTokenBuilderBean;
-import org.apache.myfaces.push.cdi.WebsocketSessionBean;
-import org.apache.myfaces.push.cdi.WebsocketViewBean;
+import org.apache.myfaces.push.cdi.*;
 import org.apache.myfaces.renderkit.ErrorPageWriter;
 import org.apache.myfaces.renderkit.RenderKitFactoryImpl;
 import org.apache.myfaces.renderkit.html.HtmlRenderKitImpl;
@@ -122,17 +119,14 @@ class MyFacesProcessor {
             FacesConfigBeanHolder.class,
             FacesDataModelClassBeanHolder.class,
             ViewScopeBeanHolder.class,
-            WebsocketChannelTokenBuilderBean.class,
-            WebsocketSessionBean.class,
-            WebsocketViewBean.class,
-            WebsocketApplicationBean.class,
-            FlowScopeBeanHolder.class,
             CdiAnnotationProviderExtension.class,
             PushContextFactoryBean.class,
             WebsocketChannelTokenBuilderBean.class,
             WebsocketSessionBean.class,
             WebsocketViewBean.class,
-            WebsocketApplicationBean.class
+            WebsocketApplicationBean.class,
+            FlowBuilderFactoryBean.class,
+            FlowScopeBeanHolder.class
     };
 
     private static final String[] BEAN_DEFINING_ANNOTATION_CLASSES = {
@@ -283,8 +277,7 @@ class MyFacesProcessor {
 
     @BuildStep
     @Record(STATIC_INIT)
-    void build(MyFacesTemplate template, CombinedIndexBuildItem combinedIndex)
-            throws IOException {
+    void buildAnnotationProviderIntegration(MyFacesTemplate template, CombinedIndexBuildItem combinedIndex) throws IOException {
 
         for (String clazz : BEAN_DEFINING_ANNOTATION_CLASSES) {
             combinedIndex.getIndex()
@@ -303,7 +296,7 @@ class MyFacesProcessor {
                         MyFacesContainerInitializer.class));
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, "javax.faces._FactoryFinderProviderFactory"));
         reflectiveClass.produce(
-                new ReflectiveClassBuildItem(true, true, ClassUtils.class, FactoryFinder.class, FacesConfigurator.class, FacesServlet.class));
+                new ReflectiveClassBuildItem(true, true, ClassUtils.class, FactoryFinder.class, FacesConfigurator.class));
 
         for (String clazz : FACES_FACTORY_NAMES) {
             reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, clazz));

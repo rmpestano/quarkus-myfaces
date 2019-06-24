@@ -17,39 +17,16 @@ package io.quarkus.myfaces.runtime.spi;
 
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.Map;
 
 import javax.faces.context.FacesContext;
 import javax.faces.flow.Flow;
 
-import org.apache.myfaces.spi.FacesFlowProvider;
+import org.apache.myfaces.flow.cdi.DefaultCDIFacesFlowProvider;
 
-/**
- * Overwrite the prevent exceptions - flows are currently not supported.
- */
-public class QuarkusFacesFlowProvider extends FacesFlowProvider {
-    @Override
-    public void onSessionDestroyed() {
-
-    }
+public class QuarkusFacesFlowProvider extends DefaultCDIFacesFlowProvider {
 
     @Override
     public Iterator<Flow> getAnnotatedFlows(FacesContext facesContext) {
         return Collections.emptyIterator();
-    }
-
-    @Override
-    public void doAfterEnterFlow(FacesContext context, Flow flow) {
-
-    }
-
-    @Override
-    public void doBeforeExitFlow(FacesContext context, Flow flow) {
-
-    }
-
-    @Override
-    public Map<Object, Object> getCurrentFlowScope(FacesContext context) {
-        return null;
     }
 }
