@@ -18,8 +18,8 @@ package io.quarkus.myfaces.deployment;
 import static io.quarkus.deployment.annotations.ExecutionTime.STATIC_INIT;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.Optional;
+import java.util.logging.Logger;
 
 import javax.faces.FactoryFinder;
 import javax.faces.application.ProjectStage;
@@ -36,6 +36,7 @@ import javax.faces.view.ViewScoped;
 import javax.faces.view.facelets.FaceletsResourceResolver;
 import javax.faces.webapp.FacesServlet;
 
+import org.apache.myfaces.application.ApplicationFactoryImpl;
 import org.apache.myfaces.cdi.FacesScoped;
 import org.apache.myfaces.cdi.JsfApplicationArtifactHolder;
 import org.apache.myfaces.cdi.JsfArtifactProducer;
@@ -43,19 +44,34 @@ import org.apache.myfaces.cdi.config.FacesConfigBeanHolder;
 import org.apache.myfaces.cdi.model.FacesDataModelClassBeanHolder;
 import org.apache.myfaces.cdi.view.ViewScopeBeanHolder;
 import org.apache.myfaces.cdi.view.ViewTransientScoped;
+import org.apache.myfaces.component.search.SearchExpressionContextFactoryImpl;
+import org.apache.myfaces.component.visit.VisitContextFactoryImpl;
 import org.apache.myfaces.config.FacesConfigurator;
 import org.apache.myfaces.config.MyfacesConfig;
 import org.apache.myfaces.config.annotation.CdiAnnotationProviderExtension;
 import org.apache.myfaces.config.element.NamedEvent;
+import org.apache.myfaces.context.ExceptionHandlerFactoryImpl;
+import org.apache.myfaces.context.ExternalContextFactoryImpl;
+import org.apache.myfaces.context.FacesContextFactoryImpl;
+import org.apache.myfaces.context.PartialViewContextFactoryImpl;
+import org.apache.myfaces.context.servlet.ServletFlashFactoryImpl;
+import org.apache.myfaces.flow.FlowHandlerFactoryImpl;
 import org.apache.myfaces.flow.cdi.FlowScopeBeanHolder;
+import org.apache.myfaces.lifecycle.ClientWindowFactoryImpl;
+import org.apache.myfaces.lifecycle.LifecycleFactoryImpl;
 import org.apache.myfaces.push.cdi.PushContextFactoryBean;
 import org.apache.myfaces.push.cdi.WebsocketApplicationBean;
 import org.apache.myfaces.push.cdi.WebsocketChannelTokenBuilderBean;
 import org.apache.myfaces.push.cdi.WebsocketSessionBean;
 import org.apache.myfaces.push.cdi.WebsocketViewBean;
 import org.apache.myfaces.renderkit.ErrorPageWriter;
+import org.apache.myfaces.renderkit.RenderKitFactoryImpl;
+import org.apache.myfaces.renderkit.html.HtmlRenderKitImpl;
 import org.apache.myfaces.spi.impl.DefaultWebConfigProviderFactory;
 import org.apache.myfaces.util.ClassUtils;
+import org.apache.myfaces.view.ViewDeclarationLanguageFactoryImpl;
+import org.apache.myfaces.view.facelets.impl.FaceletCacheFactoryImpl;
+import org.apache.myfaces.view.facelets.tag.jsf.TagHandlerDelegateFactoryImpl;
 import org.apache.myfaces.webapp.FaceletsInitilializer;
 import org.apache.myfaces.webapp.MyFacesContainerInitializer;
 import org.apache.myfaces.webapp.StartupServletContextListener;
@@ -81,7 +97,9 @@ import io.quarkus.deployment.builditem.substrate.RuntimeReinitializedClassBuildI
 import io.quarkus.deployment.builditem.substrate.ServiceProviderBuildItem;
 import io.quarkus.deployment.builditem.substrate.SubstrateResourceBuildItem;
 import io.quarkus.myfaces.runtime.MyFacesTemplate;
+import io.quarkus.myfaces.runtime.QuarkusApplicationFactory;
 import io.quarkus.myfaces.runtime.QuarkusServletContextListener;
+import io.quarkus.myfaces.runtime.exception.QuarkusExceptionHandlerFactory;
 import io.quarkus.myfaces.runtime.scopes.QuarkusFacesScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewTransientScopeContext;
@@ -95,6 +113,8 @@ import io.quarkus.undertow.deployment.ServletContainerInitializerBuildItem;
 import io.quarkus.undertow.deployment.ServletInitParamBuildItem;
 
 class MyFacesProcessor {
+
+    private static final Logger LOGGER = Logger.getLogger(MyFacesTemplate.class.getName());
 
     private static final Class[] BEAN_CLASSES = {
             JsfApplicationArtifactHolder.class,
@@ -124,6 +144,27 @@ class MyFacesProcessor {
             NamedEvent.class.getName(),
             FacesBehaviorRenderer.class.getName(),
             FaceletsResourceResolver.class.getName()
+    };
+
+    private static final String[] FACES_FACTORY_NAMES = {
+            QuarkusApplicationFactory.class.getName(),
+            QuarkusExceptionHandlerFactory.class.getName(),
+            ApplicationFactoryImpl.class.getName(),
+            ExternalContextFactoryImpl.class.getName(),
+            FacesContextFactoryImpl.class.getName(),
+            LifecycleFactoryImpl.class.getName(),
+            RenderKitFactoryImpl.class.getName(),
+            PartialViewContextFactoryImpl.class.getName(),
+            VisitContextFactoryImpl.class.getName(),
+            ViewDeclarationLanguageFactoryImpl.class.getName(),
+            ExceptionHandlerFactoryImpl.class.getName(),
+            TagHandlerDelegateFactoryImpl.class.getName(),
+            HtmlRenderKitImpl.class.getName(),
+            SearchExpressionContextFactoryImpl.class.getName(),
+            FlowHandlerFactoryImpl.class.getName(),
+            ClientWindowFactoryImpl.class.getName(),
+            ServletFlashFactoryImpl.class.getName(),
+            FaceletCacheFactoryImpl.class.getName()
     };
 
     @BuildStep
@@ -242,7 +283,8 @@ class MyFacesProcessor {
 
     @BuildStep
     @Record(STATIC_INIT)
-    void buildAnnotationProviderIntegration(MyFacesTemplate template, CombinedIndexBuildItem combinedIndex) throws IOException {
+    void build(MyFacesTemplate template, CombinedIndexBuildItem combinedIndex)
+            throws IOException {
 
         for (String clazz : BEAN_DEFINING_ANNOTATION_CLASSES) {
             combinedIndex.getIndex()
@@ -258,11 +300,14 @@ class MyFacesProcessor {
         reflectiveClass.produce(
                 new ReflectiveClassBuildItem(false, false, ExceptionQueuedEvent.class, DefaultWebConfigProviderFactory.class,
                         ErrorPageWriter.class, DocumentBuilderFactoryImpl.class, FuncLocalPart.class, FuncNot.class,
-                        MyFacesContainerInitializer.class, FacesConfigurator.class));
-
+                        MyFacesContainerInitializer.class));
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, "javax.faces._FactoryFinderProviderFactory"));
         reflectiveClass.produce(
-                new ReflectiveClassBuildItem(true, true, ClassUtils.class, FactoryFinder.class));
+                new ReflectiveClassBuildItem(true, true, ClassUtils.class, FactoryFinder.class, FacesConfigurator.class, FacesServlet.class));
+
+        for (String clazz : FACES_FACTORY_NAMES) {
+            reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, clazz));
+        }
 
     }
 
@@ -270,10 +315,13 @@ class MyFacesProcessor {
     void runtimeReinit(BuildProducer<RuntimeReinitializedClassBuildItem> runtimeReinitProducer,
             BuildProducer<ServletContainerInitializerBuildItem> servletInitproducer,
             BuildProducer<ServiceProviderBuildItem> serviceProvider) {
+
         serviceProvider.produce(new ServiceProviderBuildItem("javax.servlet.ServletContainerInitializer",
                 "org.apache.myfaces.webapp.MyFacesContainerInitializer"));
-        servletInitproducer.produce(
-                new ServletContainerInitializerBuildItem(MyFacesContainerInitializer.class.getName(), new HashSet<>()));
+        /*
+         * servletInitproducer.produce(
+         * new ServletContainerInitializerBuildItem(MyFacesContainerInitializer.class.getName(), new HashSet<>()));
+         */
         runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(MyFacesContainerInitializer.class.getName()));
         runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(FactoryFinder.class.getName()));
         //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(FacesConfigurator.class.getName()));
