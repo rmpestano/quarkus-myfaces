@@ -69,9 +69,7 @@ import org.apache.myfaces.util.ClassUtils;
 import org.apache.myfaces.view.ViewDeclarationLanguageFactoryImpl;
 import org.apache.myfaces.view.facelets.impl.FaceletCacheFactoryImpl;
 import org.apache.myfaces.view.facelets.tag.jsf.TagHandlerDelegateFactoryImpl;
-import org.apache.myfaces.webapp.FaceletsInitilializer;
-import org.apache.myfaces.webapp.MyFacesContainerInitializer;
-import org.apache.myfaces.webapp.StartupServletContextListener;
+import org.apache.myfaces.webapp.*;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.jandex.DotName;
@@ -296,7 +294,8 @@ class MyFacesProcessor {
                         MyFacesContainerInitializer.class));
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, "javax.faces._FactoryFinderProviderFactory"));
         reflectiveClass.produce(
-                new ReflectiveClassBuildItem(true, true, ClassUtils.class, FactoryFinder.class, FacesConfigurator.class));
+                new ReflectiveClassBuildItem(true, true, ClassUtils.class, FactoryFinder.class, FacesConfigurator.class,
+                        FaceletsInitilializer.class));
 
         for (String clazz : FACES_FACTORY_NAMES) {
             reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, clazz));
@@ -309,14 +308,20 @@ class MyFacesProcessor {
             BuildProducer<ServletContainerInitializerBuildItem> servletInitproducer,
             BuildProducer<ServiceProviderBuildItem> serviceProvider) {
 
-        serviceProvider.produce(new ServiceProviderBuildItem("javax.servlet.ServletContainerInitializer",
-                "org.apache.myfaces.webapp.MyFacesContainerInitializer"));
+        /*
+         * serviceProvider.produce(new ServiceProviderBuildItem("javax.servlet.ServletContainerInitializer",
+         * "org.apache.myfaces.webapp.MyFacesContainerInitializer"));
+         */
+
         /*
          * servletInitproducer.produce(
          * new ServletContainerInitializerBuildItem(MyFacesContainerInitializer.class.getName(), new HashSet<>()));
          */
-        runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(MyFacesContainerInitializer.class.getName()));
-        runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(FactoryFinder.class.getName()));
+
+        //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(MyFacesContainerInitializer.class.getName()));
+        //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(FactoryFinder.class.getName()));
+        //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(FaceletsInitilializer.class.getName()));
+        //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(MyFacesServlet.class.getName()));
         //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(FacesConfigurator.class.getName()));
         //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(StartupServletContextListener.class.getName()));
 
