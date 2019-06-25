@@ -24,11 +24,8 @@ public class QuarkusResourceResolver extends DefaultResourceResolver {
     @Override
     public URL resolveUrl(String resource) {
         URL resourceUrl = super.resolveUrl(resource);
-        if (resourceUrl == null) {
-            if (resource.equals("/")) {
-                resource = "/index.xhtml";
-            }
-            resourceUrl = super.resolveUrl(resource);
+        if (resourceUrl == null && resource.equals("/")) {
+            resourceUrl = super.resolveUrl("/index.xhtml");
         }
         return resourceUrl;
     }

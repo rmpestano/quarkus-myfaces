@@ -15,16 +15,20 @@
  */
 package io.quarkus.myfaces.deployment;
 
+import static io.quarkus.deployment.annotations.ExecutionTime.RUNTIME_INIT;
 import static io.quarkus.deployment.annotations.ExecutionTime.STATIC_INIT;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.faces.FactoryFinder;
 import javax.faces.application.ProjectStage;
 import javax.faces.application.StateManager;
 import javax.faces.component.FacesComponent;
+import javax.faces.component.UIViewRoot;
 import javax.faces.component.behavior.FacesBehavior;
 import javax.faces.convert.FacesConverter;
 import javax.faces.event.ExceptionQueuedEvent;
@@ -42,6 +46,7 @@ import org.apache.myfaces.cdi.JsfApplicationArtifactHolder;
 import org.apache.myfaces.cdi.JsfArtifactProducer;
 import org.apache.myfaces.cdi.config.FacesConfigBeanHolder;
 import org.apache.myfaces.cdi.model.FacesDataModelClassBeanHolder;
+import org.apache.myfaces.cdi.util.BeanEntry;
 import org.apache.myfaces.cdi.view.ViewScopeBeanHolder;
 import org.apache.myfaces.cdi.view.ViewTransientScoped;
 import org.apache.myfaces.component.search.SearchExpressionContextFactoryImpl;
@@ -67,11 +72,17 @@ import org.apache.myfaces.renderkit.html.HtmlRenderKitImpl;
 import org.apache.myfaces.spi.impl.DefaultWebConfigProviderFactory;
 import org.apache.myfaces.util.ClassUtils;
 import org.apache.myfaces.view.ViewDeclarationLanguageFactoryImpl;
+import org.apache.myfaces.view.facelets.compiler.SAXCompiler;
+import org.apache.myfaces.view.facelets.compiler.TagLibraryConfig;
 import org.apache.myfaces.view.facelets.impl.FaceletCacheFactoryImpl;
+import org.apache.myfaces.view.facelets.tag.composite.*;
 import org.apache.myfaces.view.facelets.tag.jsf.TagHandlerDelegateFactoryImpl;
+import org.apache.myfaces.view.facelets.tag.jsf.core.*;
+import org.apache.myfaces.view.facelets.tag.ui.*;
 import org.apache.myfaces.webapp.*;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
+import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 
 import com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl;
@@ -138,7 +149,7 @@ class MyFacesProcessor {
             FaceletsResourceResolver.class.getName()
     };
 
-    private static final String[] FACES_FACTORY_NAMES = {
+    private static final String[] FACES_FACTORIES = {
             QuarkusApplicationFactory.class.getName(),
             QuarkusExceptionHandlerFactory.class.getName(),
             ApplicationFactoryImpl.class.getName(),
@@ -286,19 +297,64 @@ class MyFacesProcessor {
         }
     }
 
-    @BuildStep
-    void registerForReflection(BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
+    @BuildStep(applicationArchiveMarkers = { "org/primefaces", "org/apache/myfaces", "javax/faces" })
+    @Record(RUNTIME_INIT)
+    void registerForReflection(BuildProducer<ReflectiveClassBuildItem> reflectiveClass, CombinedIndexBuildItem combinedIndex) {
+
+        List<String> tagHandlerClassNames = combinedIndex.getIndex()
+                .getAllKnownSubclasses(DotName.createSimple("javax.faces.view.facelets.TagHandler"))
+                .stream()
+                .map(ClassInfo::toString)
+                .collect(Collectors.toList());
+
+        List<String> converterHandlerClassNames = combinedIndex.getIndex()
+                .getAllKnownSubclasses(DotName.createSimple("javax.faces.view.facelets.ConverterHandler"))
+                .stream()
+                .map(ClassInfo::toString)
+                .collect(Collectors.toList());
+
+        List<String> componentHandlerClassNames = combinedIndex.getIndex()
+                .getAllKnownSubclasses(DotName.createSimple("javax.faces.view.facelets.ComponentHandler"))
+                .stream()
+                .map(ClassInfo::toString)
+                .collect(Collectors.toList());
+
+        List<String> validatorHandlerClassNames = combinedIndex.getIndex()
+                .getAllKnownSubclasses(DotName.createSimple("javax.faces.view.facelets.ValidatorHandler"))
+                .stream()
+                .map(ClassInfo::toString)
+                .collect(Collectors.toList());
+
         reflectiveClass.produce(
                 new ReflectiveClassBuildItem(false, false, ExceptionQueuedEvent.class, DefaultWebConfigProviderFactory.class,
                         ErrorPageWriter.class, DocumentBuilderFactoryImpl.class, FuncLocalPart.class, FuncNot.class,
                         MyFacesContainerInitializer.class));
-        reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, "javax.faces._FactoryFinderProviderFactory"));
+        reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, "javax.faces._FactoryFinderProviderFactory",
+                "org.primefaces.util.ComponentUtils", "org.primefaces.expression.SearchExpressionUtils",
+                "org.primefaces.util.SecurityUtils", "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl"));
         reflectiveClass.produce(
                 new ReflectiveClassBuildItem(true, true, ClassUtils.class, FactoryFinder.class, FacesConfigurator.class,
-                        FaceletsInitilializer.class));
+                        FaceletsInitilializer.class, TagLibraryConfig.class, String.class, QuarkusResourceResolver.class,
+                        BeanEntry.class, UIViewRoot.class, SAXCompiler.class));
 
-        for (String clazz : FACES_FACTORY_NAMES) {
-            reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, clazz));
+        for (String className : tagHandlerClassNames) {
+            reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, className));
+        }
+
+        for (String className : converterHandlerClassNames) {
+            reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, className));
+        }
+
+        for (String className : componentHandlerClassNames) {
+            reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, className));
+        }
+
+        for (String className : validatorHandlerClassNames) {
+            reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, className));
+        }
+
+        for (String className : FACES_FACTORIES) {
+            reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, className));
         }
 
     }
