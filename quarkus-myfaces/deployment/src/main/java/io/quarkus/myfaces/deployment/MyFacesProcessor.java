@@ -15,20 +15,17 @@
  */
 package io.quarkus.myfaces.deployment;
 
-import static io.quarkus.deployment.annotations.ExecutionTime.RUNTIME_INIT;
 import static io.quarkus.deployment.annotations.ExecutionTime.STATIC_INIT;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import javax.faces.FactoryFinder;
 import javax.faces.application.ProjectStage;
 import javax.faces.application.StateManager;
 import javax.faces.component.FacesComponent;
-import javax.faces.component.UIViewRoot;
 import javax.faces.component.behavior.FacesBehavior;
 import javax.faces.convert.FacesConverter;
 import javax.faces.event.ExceptionQueuedEvent;
@@ -41,6 +38,7 @@ import javax.faces.view.facelets.FaceletsResourceResolver;
 import javax.faces.webapp.FacesServlet;
 
 import org.apache.myfaces.application.ApplicationFactoryImpl;
+import org.apache.myfaces.application.viewstate.StateUtils;
 import org.apache.myfaces.cdi.FacesScoped;
 import org.apache.myfaces.cdi.JsfApplicationArtifactHolder;
 import org.apache.myfaces.cdi.JsfArtifactProducer;
@@ -97,6 +95,7 @@ import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
+import io.quarkus.deployment.builditem.ExtensionSslNativeSupportBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.substrate.ReflectiveClassBuildItem;
 import io.quarkus.deployment.builditem.substrate.RuntimeReinitializedClassBuildItem;
@@ -106,6 +105,8 @@ import io.quarkus.myfaces.runtime.MyFacesTemplate;
 import io.quarkus.myfaces.runtime.QuarkusApplicationFactory;
 import io.quarkus.myfaces.runtime.QuarkusServletContextListener;
 import io.quarkus.myfaces.runtime.exception.QuarkusExceptionHandlerFactory;
+import io.quarkus.myfaces.runtime.graal.Substitute_FactoryFinder;
+import io.quarkus.myfaces.runtime.graal.Substitute_FactoryFinderProviderFactory;
 import io.quarkus.myfaces.runtime.scopes.QuarkusFacesScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewTransientScopeContext;
@@ -297,66 +298,89 @@ class MyFacesProcessor {
         }
     }
 
+    /**
+     * Enables JNI support to avoid: Error: Unsupported method sun.font.SunLayoutEngine.nativeLayout
+     *
+     * @param extensionSslNativeSupport
+     */
+    @BuildStep
+    @Record(STATIC_INIT)
+    void enableSSlStep(BuildProducer<ExtensionSslNativeSupportBuildItem> extensionSslNativeSupport) {
+        // this is commented because we've deleted the class which uses JNI (com.lowagie.text.pdf.MappedRandomAccessFile)
+        // see Substitute_MappedRandomAccessFile.java
+        // extensionSslNativeSupport.produce(new ExtensionSslNativeSupportBuildItem("myfaces"));
+    }
+
     @BuildStep(applicationArchiveMarkers = { "org/primefaces", "org/apache/myfaces", "javax/faces" })
-    @Record(RUNTIME_INIT)
+    @Record(STATIC_INIT)
     void registerForReflection(BuildProducer<ReflectiveClassBuildItem> reflectiveClass, CombinedIndexBuildItem combinedIndex) {
 
-        List<String> tagHandlerClassNames = combinedIndex.getIndex()
+        List<String> tagHandlers = combinedIndex.getIndex()
                 .getAllKnownSubclasses(DotName.createSimple("javax.faces.view.facelets.TagHandler"))
                 .stream()
                 .map(ClassInfo::toString)
                 .collect(Collectors.toList());
 
-        List<String> converterHandlerClassNames = combinedIndex.getIndex()
+        List<String> converterHandlers = combinedIndex.getIndex()
                 .getAllKnownSubclasses(DotName.createSimple("javax.faces.view.facelets.ConverterHandler"))
                 .stream()
                 .map(ClassInfo::toString)
                 .collect(Collectors.toList());
 
-        List<String> componentHandlerClassNames = combinedIndex.getIndex()
+        List<String> componentHandlers = combinedIndex.getIndex()
                 .getAllKnownSubclasses(DotName.createSimple("javax.faces.view.facelets.ComponentHandler"))
                 .stream()
                 .map(ClassInfo::toString)
                 .collect(Collectors.toList());
 
-        List<String> validatorHandlerClassNames = combinedIndex.getIndex()
+        List<String> validatorHandlers = combinedIndex.getIndex()
                 .getAllKnownSubclasses(DotName.createSimple("javax.faces.view.facelets.ValidatorHandler"))
                 .stream()
                 .map(ClassInfo::toString)
                 .collect(Collectors.toList());
 
+        List<String> renderers = combinedIndex.getIndex()
+                .getAllKnownSubclasses(DotName.createSimple("javax.faces.render.Renderer"))
+                .stream()
+                .map(ClassInfo::toString)
+                .collect(Collectors.toList());
+
+        List<String> components = combinedIndex.getIndex()
+                .getAllKnownSubclasses(DotName.createSimple("javax.faces.component.UIComponent"))
+                .stream()
+                .map(ClassInfo::toString)
+                .collect(Collectors.toList());
+
+        List<String> converters = combinedIndex.getIndex()
+                .getAllKnownImplementors(DotName.createSimple("javax.faces.convert.Converter"))
+                .stream()
+                .map(ClassInfo::toString)
+                .collect(Collectors.toList());
+
+        Set<String> collectedClassesForReflection = Stream
+                .of(tagHandlers, converterHandlers, componentHandlers, validatorHandlers, renderers,
+                        components, converters, Arrays.asList(FACES_FACTORIES))
+                .flatMap(Collection::stream)
+                .collect(Collectors.toSet());
+
+        for (String className : collectedClassesForReflection) {
+            reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, className));
+        }
+
         reflectiveClass.produce(
                 new ReflectiveClassBuildItem(false, false, ExceptionQueuedEvent.class, DefaultWebConfigProviderFactory.class,
                         ErrorPageWriter.class, DocumentBuilderFactoryImpl.class, FuncLocalPart.class, FuncNot.class,
                         MyFacesContainerInitializer.class));
-        reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, "javax.faces._FactoryFinderProviderFactory",
-                "org.primefaces.util.ComponentUtils", "org.primefaces.expression.SearchExpressionUtils",
+
+        reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, "org.primefaces.util.ComponentUtils",
+                "org.primefaces.expression.SearchExpressionUtils", "org.primefaces.behavior.ajax.AjaxBehavior",
+                "com.lowagie.text.pdf.MappedRandomAccessFile",
                 "org.primefaces.util.SecurityUtils", "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl"));
-        reflectiveClass.produce(
-                new ReflectiveClassBuildItem(true, true, ClassUtils.class, FactoryFinder.class, FacesConfigurator.class,
-                        FaceletsInitilializer.class, TagLibraryConfig.class, String.class, QuarkusResourceResolver.class,
-                        BeanEntry.class, UIViewRoot.class, SAXCompiler.class));
 
-        for (String className : tagHandlerClassNames) {
-            reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, className));
-        }
-
-        for (String className : converterHandlerClassNames) {
-            reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, className));
-        }
-
-        for (String className : componentHandlerClassNames) {
-            reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, className));
-        }
-
-        for (String className : validatorHandlerClassNames) {
-            reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, className));
-        }
-
-        for (String className : FACES_FACTORIES) {
-            reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, className));
-        }
-
+        reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, ClassUtils.class, Substitute_FactoryFinder.class,
+                FacesConfigurator.class, FaceletsInitilializer.class, TagLibraryConfig.class, String.class,
+                Substitute_FactoryFinderProviderFactory.class,
+                QuarkusResourceResolver.class, BeanEntry.class, SAXCompiler.class, StateUtils.class));
     }
 
     @BuildStep
@@ -388,7 +412,18 @@ class MyFacesProcessor {
         substrateResourceProducer
                 .produce(new SubstrateResourceBuildItem("META-INF/maven/org.primefaces/primefaces/pom.properties"));
         substrateResourceProducer.produce(new SubstrateResourceBuildItem("META-INF/rsc/myfaces-dev-error.xml",
-                "META-INF/rsc/myfaces-dev-debug.xml",
+                "META-INF/rsc/myfaces-dev-debug.xml", "org/apache/myfaces/resource/default.dtd",
+                "org/apache/myfaces/resource/datatypes.dtd", "META-INF/web-fragment.xml",
+                "META-INF/resources/org/apache/myfaces/windowId/windowhandler.html",
+                "org/apache/myfaces/resource/facelet-taglib_1_0.dtd", "org/apache/myfaces/resource/javaee_5.xsd",
+                "org/apache/myfaces/resource/web-facelettaglibrary_2_0.xsd",
+                "org/apache/myfaces/resource/XMLSchema.dtd", "org/apache/myfaces/resource/facesconfig_1_0.dtd",
+                "org/apache/myfaces/resource/web-facesconfig_1_1.dtd",
+                "org/apache/myfaces/resource/web-facesconfig_1_2.dtd", "org/apache/myfaces/resource/web-facesconfig_2_0.dtd",
+                "org/apache/myfaces/resource/web-facesconfig_2_1.dtd",
+                "org/apache/myfaces/resource/web-facesconfig_2_2.dtd", "org/apache/myfaces/resource/web-facesconfig_2_3.dtd",
+                "org/apache/myfaces/resource/web-facesconfig_3_0.dtd",
+                "org/apache/myfaces/resource/xml.xsd",
                 "META-INF/rsc/myfaces-dev-error-include.xml", "META-INF/services/javax.servlet.ServletContainerInitializer"));
 
     }
