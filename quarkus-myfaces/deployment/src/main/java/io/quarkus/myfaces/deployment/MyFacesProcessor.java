@@ -23,12 +23,14 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.faces.FactoryFinder;
 import javax.faces.application.ProjectStage;
 import javax.faces.application.StateManager;
 import javax.faces.component.FacesComponent;
+import javax.faces.component.UIViewRoot;
 import javax.faces.component.behavior.FacesBehavior;
 import javax.faces.convert.FacesConverter;
-import javax.faces.event.ExceptionQueuedEvent;
+import javax.faces.event.*;
 import javax.faces.push.PushContext;
 import javax.faces.render.FacesBehaviorRenderer;
 import javax.faces.render.FacesRenderer;
@@ -38,6 +40,7 @@ import javax.faces.view.facelets.FaceletsResourceResolver;
 import javax.faces.webapp.FacesServlet;
 
 import org.apache.myfaces.application.ApplicationFactoryImpl;
+import org.apache.myfaces.application.ApplicationImpl;
 import org.apache.myfaces.application.viewstate.StateUtils;
 import org.apache.myfaces.cdi.FacesScoped;
 import org.apache.myfaces.cdi.JsfApplicationArtifactHolder;
@@ -57,12 +60,14 @@ import org.apache.myfaces.context.ExceptionHandlerFactoryImpl;
 import org.apache.myfaces.context.ExternalContextFactoryImpl;
 import org.apache.myfaces.context.FacesContextFactoryImpl;
 import org.apache.myfaces.context.PartialViewContextFactoryImpl;
+import org.apache.myfaces.context.servlet.FacesContextImplBase;
 import org.apache.myfaces.context.servlet.ServletFlashFactoryImpl;
 import org.apache.myfaces.flow.FlowHandlerFactoryImpl;
 import org.apache.myfaces.flow.cdi.FlowBuilderFactoryBean;
 import org.apache.myfaces.flow.cdi.FlowScopeBeanHolder;
 import org.apache.myfaces.lifecycle.ClientWindowFactoryImpl;
 import org.apache.myfaces.lifecycle.LifecycleFactoryImpl;
+import org.apache.myfaces.lifecycle.RestoreViewSupport;
 import org.apache.myfaces.push.cdi.*;
 import org.apache.myfaces.renderkit.ErrorPageWriter;
 import org.apache.myfaces.renderkit.RenderKitFactoryImpl;
@@ -73,11 +78,10 @@ import org.apache.myfaces.view.ViewDeclarationLanguageFactoryImpl;
 import org.apache.myfaces.view.facelets.compiler.SAXCompiler;
 import org.apache.myfaces.view.facelets.compiler.TagLibraryConfig;
 import org.apache.myfaces.view.facelets.impl.FaceletCacheFactoryImpl;
-import org.apache.myfaces.view.facelets.tag.composite.*;
 import org.apache.myfaces.view.facelets.tag.jsf.TagHandlerDelegateFactoryImpl;
-import org.apache.myfaces.view.facelets.tag.jsf.core.*;
-import org.apache.myfaces.view.facelets.tag.ui.*;
-import org.apache.myfaces.webapp.*;
+import org.apache.myfaces.webapp.FaceletsInitilializer;
+import org.apache.myfaces.webapp.MyFacesContainerInitializer;
+import org.apache.myfaces.webapp.StartupServletContextListener;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.jandex.ClassInfo;
@@ -169,6 +173,29 @@ class MyFacesProcessor {
             ClientWindowFactoryImpl.class.getName(),
             ServletFlashFactoryImpl.class.getName(),
             FaceletCacheFactoryImpl.class.getName()
+    };
+
+    private static final String[] MYFACES_GENERATED_COMPONENTS = {
+            "javax.faces.component.html.HtmlBody",
+            "javax.faces.component.html.HtmlColumn",
+            "javax.faces.component.html.HtmlCommandButton",
+            "javax.faces.component.html.HtmlCommandLink",
+            "javax.faces.component.html.HtmlCommandScript",
+            "javax.faces.component.html.HtmlDataTable",
+            "javax.faces.component.html.HtmlDoctype",
+            "javax.faces.component.html.HtmlForm",
+            "javax.faces.component.html.HtmlGraphicImage",
+            "javax.faces.component.html.HtmlHead",
+            "javax.faces.component.html.HtmlInputFile",
+            "javax.faces.component.html.HtmlInputText",
+            "javax.faces.component.html.HtmlInputTextarea",
+            "javax.faces.component.html.HtmlMessage",
+            "javax.faces.component.html.HtmlMessages",
+            "javax.faces.component.html.HtmlOutcomeTargetButton",
+            "javax.faces.component.html.HtmlOutcomeTargetLink",
+            "javax.faces.component.html.HtmlOutputFormat",
+            "javax.faces.component.html.HtmlOutputLabel",
+            "javax.faces.component.html.HtmlInputSecret"
     };
 
     @BuildStep
@@ -306,12 +333,10 @@ class MyFacesProcessor {
     @BuildStep
     @Record(STATIC_INIT)
     void enableSSlStep(BuildProducer<ExtensionSslNativeSupportBuildItem> extensionSslNativeSupport) {
-        // this is commented because we've deleted the class which uses JNI (com.lowagie.text.pdf.MappedRandomAccessFile)
-        // see Substitute_MappedRandomAccessFile.java
-        // extensionSslNativeSupport.produce(new ExtensionSslNativeSupportBuildItem("myfaces"));
+        extensionSslNativeSupport.produce(new ExtensionSslNativeSupportBuildItem("myfaces"));
     }
 
-    @BuildStep(applicationArchiveMarkers = { "org/primefaces", "org/apache/myfaces", "javax/faces" })
+    @BuildStep(applicationArchiveMarkers = { "org/primefaces/component", "org/apache/myfaces/view", "javax/faces/component" })
     @Record(STATIC_INIT)
     void registerForReflection(BuildProducer<ReflectiveClassBuildItem> reflectiveClass, CombinedIndexBuildItem combinedIndex) {
 
@@ -357,9 +382,17 @@ class MyFacesProcessor {
                 .map(ClassInfo::toString)
                 .collect(Collectors.toList());
 
+        List<String> primefacesWidgets = combinedIndex.getIndex()
+                .getAllKnownImplementors(DotName.createSimple("org.primefaces.component.api.Widget"))
+                .stream()
+                .map(ClassInfo::toString)
+                .collect(Collectors.toList());
+
         Set<String> collectedClassesForReflection = Stream
-                .of(tagHandlers, converterHandlers, componentHandlers, validatorHandlers, renderers,
-                        components, converters, Arrays.asList(FACES_FACTORIES))
+                .of(tagHandlers, converterHandlers, componentHandlers, validatorHandlers, renderers, primefacesWidgets,
+                        components, converters, Arrays.asList(FACES_FACTORIES)/*
+                                                                               * , Arrays.asList(MYFACES_GENERATED_COMPONENTS)
+                                                                               */)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toSet());
 
@@ -374,13 +407,15 @@ class MyFacesProcessor {
 
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, "org.primefaces.util.ComponentUtils",
                 "org.primefaces.expression.SearchExpressionUtils", "org.primefaces.behavior.ajax.AjaxBehavior",
-                "com.lowagie.text.pdf.MappedRandomAccessFile",
+                "com.lowagie.text.pdf.MappedRandomAccessFile", "org.apache.myfaces.application_ApplicationUtils",
                 "org.primefaces.util.SecurityUtils", "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl"));
 
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, ClassUtils.class, Substitute_FactoryFinder.class,
                 FacesConfigurator.class, FaceletsInitilializer.class, TagLibraryConfig.class, String.class,
-                Substitute_FactoryFinderProviderFactory.class,
-                QuarkusResourceResolver.class, BeanEntry.class, SAXCompiler.class, StateUtils.class));
+                Substitute_FactoryFinderProviderFactory.class, FacesContextImplBase.class, FactoryFinder.class,
+                QuarkusResourceResolver.class, BeanEntry.class, SAXCompiler.class, StateUtils.class, ApplicationImpl.class,
+                RestoreViewSupport.class, UIViewRoot.class, ExceptionQueuedEvent.class, ExceptionQueuedEventContext.class,
+                PostAddToViewEvent.class, ComponentSystemEvent.class, SystemEvent.class, PreRenderComponentEvent.class));
     }
 
     @BuildStep
@@ -424,7 +459,27 @@ class MyFacesProcessor {
                 "org/apache/myfaces/resource/web-facesconfig_2_2.dtd", "org/apache/myfaces/resource/web-facesconfig_2_3.dtd",
                 "org/apache/myfaces/resource/web-facesconfig_3_0.dtd",
                 "org/apache/myfaces/resource/xml.xsd",
-                "META-INF/rsc/myfaces-dev-error-include.xml", "META-INF/services/javax.servlet.ServletContainerInitializer"));
+                "META-INF/rsc/myfaces-dev-error-include.xml",
+                "META-INF/services/javax.servlet.ServletContainerInitializer",
+                "javax/faces/Messages.properties",
+                "javax/faces/Messages_ar.properties",
+                "javax/faces/Messages_ca.properties",
+                "javax/faces/Messages_cs.properties",
+                "javax/faces/Messages_de.properties",
+                "javax/faces/Messages_en.properties",
+                "javax/faces/Messages_es.properties",
+                "javax/faces/Messages_fr.properties",
+                "javax/faces/Messages_it.properties",
+                "javax/faces/Messages_ja.properties",
+                "javax/faces/Messages_mt.properties",
+                "javax/faces/Messages_nl.properties",
+                "javax/faces/Messages_pl.properties",
+                "javax/faces/Messages_pt_PR.properties",
+                "javax/faces/Messages_ru.properties",
+                "javax/faces/Messages_sk.properties",
+                "javax/faces/Messages_zh_CN.properties",
+                "javax/faces/Messages_zh_HK.properties",
+                "javax/faces/Messages_zh_TW.properties"));
 
     }
 

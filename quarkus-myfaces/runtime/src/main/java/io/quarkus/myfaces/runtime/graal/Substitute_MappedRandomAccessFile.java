@@ -5,19 +5,16 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 
 import com.lowagie.text.pdf.PdfException;
-import com.oracle.svm.core.annotate.Alias;
-import com.oracle.svm.core.annotate.Substitute;
-import com.oracle.svm.core.annotate.TargetClass;
 
-@TargetClass(className = "com.lowagie.text.pdf.MappedRandomAccessFile")
+//@TargetClass(className = "com.lowagie.text.pdf.MappedRandomAccessFile")
 public final class Substitute_MappedRandomAccessFile {
 
-    @Alias
+    //@Alias
     private MappedByteBuffer mappedByteBuffer = null;
-    @Alias
+    //@Alias
     private FileChannel channel = null;
 
-    @Substitute
+    //@Substitute
     private void init(FileChannel channel, FileChannel.MapMode mapMode)
             throws IOException {
 

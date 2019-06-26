@@ -26,15 +26,12 @@ import javax.faces.view.ViewDeclarationLanguageFactory;
 import javax.faces.view.facelets.FaceletCacheFactory;
 import javax.faces.view.facelets.TagHandlerDelegateFactory;
 
-import com.oracle.svm.core.annotate.Substitute;
-import com.oracle.svm.core.annotate.TargetClass;
-
 /**
  * A simplified FactoryFinder, it doesn't support multiple classloaders as the original one:
  * https://github.com/apache/myfaces/blob/cfa3c56b8e60d7db3e235b81131fcfa3e5d1326a/api/src/main/java/javax/faces/FactoryFinder.java#L79
  */
-@TargetClass(className = "javax.faces.FactoryFinder")
-@Substitute
+//@TargetClass(className = "javax.faces.FactoryFinder")
+//@Substitute
 public final class Substitute_FactoryFinder {
 
     public static final String APPLICATION_FACTORY = "javax.faces.application.ApplicationFactory";
@@ -179,7 +176,7 @@ public final class Substitute_FactoryFinder {
      * @throws NullPointerException
      *         if <code>factoryname</code> is null
      */
-    @Substitute
+    //@Substitute
     public static Object getFactory(String factoryName) throws FacesException {
         if (factoryName == null) {
             throw new NullPointerException("factoryName may not be null");
@@ -422,7 +419,7 @@ public final class Substitute_FactoryFinder {
         }
     }
 
-    @Substitute
+    //@Substitute
     public static void setFactory(String factoryName, String implName) {
         if (factoryName == null) {
             throw new NullPointerException("factoryName may not be null");
@@ -475,7 +472,7 @@ public final class Substitute_FactoryFinder {
         classNameList.add(implName);
     }
 
-    @Substitute
+    //@Substitute
     public static void releaseFactories() throws FacesException {
         initializeFactoryFinderProviderFactory();
 
