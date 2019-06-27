@@ -23,6 +23,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.el.BeanELResolver;
 import javax.faces.FactoryFinder;
 import javax.faces.application.ProjectStage;
 import javax.faces.application.StateManager;
@@ -39,6 +40,7 @@ import javax.faces.view.ViewScoped;
 import javax.faces.view.facelets.FaceletsResourceResolver;
 import javax.faces.webapp.FacesServlet;
 
+import org.apache.el.ValueExpressionImpl;
 import org.apache.myfaces.application.ApplicationFactoryImpl;
 import org.apache.myfaces.application.ApplicationImpl;
 import org.apache.myfaces.application.viewstate.StateUtils;
@@ -62,6 +64,7 @@ import org.apache.myfaces.context.FacesContextFactoryImpl;
 import org.apache.myfaces.context.PartialViewContextFactoryImpl;
 import org.apache.myfaces.context.servlet.FacesContextImplBase;
 import org.apache.myfaces.context.servlet.ServletFlashFactoryImpl;
+import org.apache.myfaces.el.resolver.CompositeELResolver;
 import org.apache.myfaces.flow.FlowHandlerFactoryImpl;
 import org.apache.myfaces.flow.cdi.FlowBuilderFactoryBean;
 import org.apache.myfaces.flow.cdi.FlowScopeBeanHolder;
@@ -101,10 +104,7 @@ import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.ExtensionSslNativeSupportBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
-import io.quarkus.deployment.builditem.substrate.ReflectiveClassBuildItem;
-import io.quarkus.deployment.builditem.substrate.RuntimeReinitializedClassBuildItem;
-import io.quarkus.deployment.builditem.substrate.ServiceProviderBuildItem;
-import io.quarkus.deployment.builditem.substrate.SubstrateResourceBuildItem;
+import io.quarkus.deployment.builditem.substrate.*;
 import io.quarkus.myfaces.runtime.MyFacesTemplate;
 import io.quarkus.myfaces.runtime.QuarkusApplicationFactory;
 import io.quarkus.myfaces.runtime.QuarkusServletContextListener;
@@ -120,7 +120,6 @@ import io.quarkus.runtime.LaunchMode;
 import io.quarkus.runtime.configuration.ProfileManager;
 import io.quarkus.undertow.deployment.ListenerBuildItem;
 import io.quarkus.undertow.deployment.ServletBuildItem;
-import io.quarkus.undertow.deployment.ServletContainerInitializerBuildItem;
 import io.quarkus.undertow.deployment.ServletInitParamBuildItem;
 
 class MyFacesProcessor {
@@ -376,6 +375,18 @@ class MyFacesProcessor {
                 .map(ClassInfo::toString)
                 .collect(Collectors.toList());
 
+        List<String> valueExpressions = combinedIndex.getIndex()
+                .getAllKnownSubclasses(DotName.createSimple("javax.el.ValueExpression"))
+                .stream()
+                .map(ClassInfo::toString)
+                .collect(Collectors.toList());
+
+        List<String> elResolvers = combinedIndex.getIndex()
+                .getAllKnownSubclasses(DotName.createSimple("javax.el.ELResolver"))
+                .stream()
+                .map(ClassInfo::toString)
+                .collect(Collectors.toList());
+
         List<String> converters = combinedIndex.getIndex()
                 .getAllKnownImplementors(DotName.createSimple("javax.faces.convert.Converter"))
                 .stream()
@@ -390,9 +401,10 @@ class MyFacesProcessor {
 
         Set<String> collectedClassesForReflection = Stream
                 .of(tagHandlers, converterHandlers, componentHandlers, validatorHandlers, renderers, primefacesWidgets,
-                        components, converters, Arrays.asList(FACES_FACTORIES)/*
-                                                                               * , Arrays.asList(MYFACES_GENERATED_COMPONENTS)
-                                                                               */)
+                        components, converters, valueExpressions, elResolvers, Arrays.asList(FACES_FACTORIES)/*
+                                                                                                              * , Arrays.asList(
+                                                                                                              * MYFACES_GENERATED_COMPONENTS)
+                                                                                                              */)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toSet());
 
@@ -408,42 +420,25 @@ class MyFacesProcessor {
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, "org.primefaces.util.ComponentUtils",
                 "org.primefaces.expression.SearchExpressionUtils", "org.primefaces.behavior.ajax.AjaxBehavior",
                 "com.lowagie.text.pdf.MappedRandomAccessFile", "org.apache.myfaces.application_ApplicationUtils",
-                "org.primefaces.util.SecurityUtils", "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl"));
+                "com.sun.el.util.ReflectionUtil",
+                "org.primefaces.util.SecurityUtils", "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl",
+                "javax.faces.component._DeltaStateHelper", "javax.faces.component._DeltaStateHelper$InternalMap"));
 
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, ClassUtils.class, Substitute_FactoryFinder.class,
                 FacesConfigurator.class, FaceletsInitilializer.class, TagLibraryConfig.class, String.class,
                 Substitute_FactoryFinderProviderFactory.class, FacesContextImplBase.class, FactoryFinder.class,
+                CompositeELResolver.class, javax.el.CompositeELResolver.class, ValueExpressionImpl.class,
+                com.sun.el.ValueExpressionImpl.class,
                 QuarkusResourceResolver.class, BeanEntry.class, SAXCompiler.class, StateUtils.class, ApplicationImpl.class,
+                BeanELResolver.class,
                 RestoreViewSupport.class, UIViewRoot.class, ExceptionQueuedEvent.class, ExceptionQueuedEventContext.class,
-                PostAddToViewEvent.class, ComponentSystemEvent.class, SystemEvent.class, PreRenderComponentEvent.class));
+                PostAddToViewEvent.class, PreDestroyApplicationEvent.class, ComponentSystemEvent.class, SystemEvent.class,
+                PreRenderComponentEvent.class));
     }
 
     @BuildStep
-    void runtimeReinit(BuildProducer<RuntimeReinitializedClassBuildItem> runtimeReinitProducer,
-            BuildProducer<ServletContainerInitializerBuildItem> servletInitproducer,
-            BuildProducer<ServiceProviderBuildItem> serviceProvider) {
-
-        /*
-         * serviceProvider.produce(new ServiceProviderBuildItem("javax.servlet.ServletContainerInitializer",
-         * "org.apache.myfaces.webapp.MyFacesContainerInitializer"));
-         */
-
-        /*
-         * servletInitproducer.produce(
-         * new ServletContainerInitializerBuildItem(MyFacesContainerInitializer.class.getName(), new HashSet<>()));
-         */
-
-        //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(MyFacesContainerInitializer.class.getName()));
-        //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(FactoryFinder.class.getName()));
-        //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(FaceletsInitilializer.class.getName()));
-        //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(MyFacesServlet.class.getName()));
-        //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(FacesConfigurator.class.getName()));
-        //runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(StartupServletContextListener.class.getName()));
-
-    }
-
-    @BuildStep
-    void substrateResourceBuildItems(BuildProducer<SubstrateResourceBuildItem> substrateResourceProducer) {
+    void substrateResourceBuildItems(BuildProducer<SubstrateResourceBuildItem> substrateResourceProducer,
+            BuildProducer<SubstrateResourceBundleBuildItem> resourceBundleBuildItem) {
         substrateResourceProducer
                 .produce(new SubstrateResourceBuildItem("META-INF/maven/org.primefaces/primefaces/pom.properties"));
         substrateResourceProducer.produce(new SubstrateResourceBuildItem("META-INF/rsc/myfaces-dev-error.xml",
@@ -460,27 +455,28 @@ class MyFacesProcessor {
                 "org/apache/myfaces/resource/web-facesconfig_3_0.dtd",
                 "org/apache/myfaces/resource/xml.xsd",
                 "META-INF/rsc/myfaces-dev-error-include.xml",
-                "META-INF/services/javax.servlet.ServletContainerInitializer",
-                "javax/faces/Messages.properties",
-                "javax/faces/Messages_ar.properties",
-                "javax/faces/Messages_ca.properties",
-                "javax/faces/Messages_cs.properties",
-                "javax/faces/Messages_de.properties",
-                "javax/faces/Messages_en.properties",
-                "javax/faces/Messages_es.properties",
-                "javax/faces/Messages_fr.properties",
-                "javax/faces/Messages_it.properties",
-                "javax/faces/Messages_ja.properties",
-                "javax/faces/Messages_mt.properties",
-                "javax/faces/Messages_nl.properties",
-                "javax/faces/Messages_pl.properties",
-                "javax/faces/Messages_pt_PR.properties",
-                "javax/faces/Messages_ru.properties",
-                "javax/faces/Messages_sk.properties",
-                "javax/faces/Messages_zh_CN.properties",
-                "javax/faces/Messages_zh_HK.properties",
-                "javax/faces/Messages_zh_TW.properties"));
+                "META-INF/services/javax.servlet.ServletContainerInitializer"));
 
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_ar.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_ca.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_cs.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_de.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_en.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_es.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_fr.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_it.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_ja.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_mt.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_nl.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_pl.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_pt_PR.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_ru.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_sk.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_zh_CN.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_zh_HK.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_zh_TW.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.el.PrivateMessages"));
     }
 
     private Optional<String> resolveProjectStage(Config config) {
