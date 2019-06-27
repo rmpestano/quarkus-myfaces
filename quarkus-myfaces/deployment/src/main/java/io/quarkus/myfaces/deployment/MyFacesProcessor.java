@@ -57,6 +57,7 @@ import org.apache.myfaces.component.visit.VisitContextFactoryImpl;
 import org.apache.myfaces.config.FacesConfigurator;
 import org.apache.myfaces.config.MyfacesConfig;
 import org.apache.myfaces.config.annotation.CdiAnnotationProviderExtension;
+import org.apache.myfaces.config.annotation.DefaultLifecycleProviderFactory;
 import org.apache.myfaces.config.element.NamedEvent;
 import org.apache.myfaces.context.ExceptionHandlerFactoryImpl;
 import org.apache.myfaces.context.ExternalContextFactoryImpl;
@@ -78,6 +79,7 @@ import org.apache.myfaces.renderkit.html.HtmlRenderKitImpl;
 import org.apache.myfaces.spi.impl.DefaultWebConfigProviderFactory;
 import org.apache.myfaces.util.ClassUtils;
 import org.apache.myfaces.view.ViewDeclarationLanguageFactoryImpl;
+import org.apache.myfaces.view.ViewScopeProxyMap;
 import org.apache.myfaces.view.facelets.compiler.SAXCompiler;
 import org.apache.myfaces.view.facelets.compiler.TagLibraryConfig;
 import org.apache.myfaces.view.facelets.impl.FaceletCacheFactoryImpl;
@@ -172,29 +174,6 @@ class MyFacesProcessor {
             ClientWindowFactoryImpl.class.getName(),
             ServletFlashFactoryImpl.class.getName(),
             FaceletCacheFactoryImpl.class.getName()
-    };
-
-    private static final String[] MYFACES_GENERATED_COMPONENTS = {
-            "javax.faces.component.html.HtmlBody",
-            "javax.faces.component.html.HtmlColumn",
-            "javax.faces.component.html.HtmlCommandButton",
-            "javax.faces.component.html.HtmlCommandLink",
-            "javax.faces.component.html.HtmlCommandScript",
-            "javax.faces.component.html.HtmlDataTable",
-            "javax.faces.component.html.HtmlDoctype",
-            "javax.faces.component.html.HtmlForm",
-            "javax.faces.component.html.HtmlGraphicImage",
-            "javax.faces.component.html.HtmlHead",
-            "javax.faces.component.html.HtmlInputFile",
-            "javax.faces.component.html.HtmlInputText",
-            "javax.faces.component.html.HtmlInputTextarea",
-            "javax.faces.component.html.HtmlMessage",
-            "javax.faces.component.html.HtmlMessages",
-            "javax.faces.component.html.HtmlOutcomeTargetButton",
-            "javax.faces.component.html.HtmlOutcomeTargetLink",
-            "javax.faces.component.html.HtmlOutputFormat",
-            "javax.faces.component.html.HtmlOutputLabel",
-            "javax.faces.component.html.HtmlInputSecret"
     };
 
     @BuildStep
@@ -381,12 +360,6 @@ class MyFacesProcessor {
                 .map(ClassInfo::toString)
                 .collect(Collectors.toList());
 
-        List<String> elResolvers = combinedIndex.getIndex()
-                .getAllKnownSubclasses(DotName.createSimple("javax.el.ELResolver"))
-                .stream()
-                .map(ClassInfo::toString)
-                .collect(Collectors.toList());
-
         List<String> converters = combinedIndex.getIndex()
                 .getAllKnownImplementors(DotName.createSimple("javax.faces.convert.Converter"))
                 .stream()
@@ -401,39 +374,53 @@ class MyFacesProcessor {
 
         Set<String> collectedClassesForReflection = Stream
                 .of(tagHandlers, converterHandlers, componentHandlers, validatorHandlers, renderers, primefacesWidgets,
-                        components, converters, valueExpressions, elResolvers, Arrays.asList(FACES_FACTORIES)/*
-                                                                                                              * , Arrays.asList(
-                                                                                                              * MYFACES_GENERATED_COMPONENTS)
-                                                                                                              */)
+                        components, converters, valueExpressions, Arrays.asList(FACES_FACTORIES))
                 .flatMap(Collection::stream)
                 .collect(Collectors.toSet());
 
         for (String className : collectedClassesForReflection) {
-            reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, className));
+            reflectiveClass.produce(new ReflectiveClassBuildItem(false, false, className));
         }
 
+        //el resolvers requires method reflection
+        combinedIndex.getIndex()
+                .getAllKnownSubclasses(DotName.createSimple("javax.el.ELResolver"))
+                .stream()
+                .map(ClassInfo::toString)
+                .forEach(className -> reflectiveClass.produce(new ReflectiveClassBuildItem(true, false, className)));
+
+        //class names build itens with limited reflection support
+        reflectiveClass.produce(new ReflectiveClassBuildItem(false, false,
+                "org.primefaces.behavior.ajax.AjaxBehavior",
+                "com.lowagie.text.pdf.MappedRandomAccessFile", "org.apache.myfaces.application_ApplicationUtils",
+                "com.sun.el.util.ReflectionUtil", "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl",
+                "javax.faces.component._DeltaStateHelper", "javax.faces.component._DeltaStateHelper$InternalMap"));
+
+        //class names build itens with method reflection support
+        reflectiveClass.produce(new ReflectiveClassBuildItem(true, false, "org.primefaces.util.ComponentUtils",
+                "org.primefaces.expression.SearchExpressionUtils", "org.primefaces.util.SecurityUtils",
+                "io.quarkus.myfaces.showcase.view.LazyView", "io.quarkus.myfaces.showcase.view.LazyView_ClientProxy"));
+
+        //classes build itens with limited reflection support
         reflectiveClass.produce(
                 new ReflectiveClassBuildItem(false, false, ExceptionQueuedEvent.class, DefaultWebConfigProviderFactory.class,
                         ErrorPageWriter.class, DocumentBuilderFactoryImpl.class, FuncLocalPart.class, FuncNot.class,
-                        MyFacesContainerInitializer.class));
+                        MyFacesContainerInitializer.class, DefaultLifecycleProviderFactory.class,
+                        RestoreViewSupport.class, UIViewRoot.class, ExceptionQueuedEvent.class,
+                        ExceptionQueuedEventContext.class,
+                        PostAddToViewEvent.class, PreDestroyApplicationEvent.class, ComponentSystemEvent.class,
+                        SystemEvent.class,
+                        PreRenderComponentEvent.class, FacesConfigurator.class, FaceletsInitilializer.class,
+                        TagLibraryConfig.class, String.class,
+                        Substitute_FactoryFinderProviderFactory.class, FacesContextImplBase.class, FactoryFinder.class,
+                        CompositeELResolver.class, javax.el.CompositeELResolver.class, ValueExpressionImpl.class,
+                        com.sun.el.ValueExpressionImpl.class, ViewScopeProxyMap.class,
+                        QuarkusResourceResolver.class, BeanEntry.class, SAXCompiler.class, StateUtils.class,
+                        ApplicationImpl.class));
 
-        reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, "org.primefaces.util.ComponentUtils",
-                "org.primefaces.expression.SearchExpressionUtils", "org.primefaces.behavior.ajax.AjaxBehavior",
-                "com.lowagie.text.pdf.MappedRandomAccessFile", "org.apache.myfaces.application_ApplicationUtils",
-                "com.sun.el.util.ReflectionUtil",
-                "org.primefaces.util.SecurityUtils", "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl",
-                "javax.faces.component._DeltaStateHelper", "javax.faces.component._DeltaStateHelper$InternalMap"));
-
-        reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, ClassUtils.class, Substitute_FactoryFinder.class,
-                FacesConfigurator.class, FaceletsInitilializer.class, TagLibraryConfig.class, String.class,
-                Substitute_FactoryFinderProviderFactory.class, FacesContextImplBase.class, FactoryFinder.class,
-                CompositeELResolver.class, javax.el.CompositeELResolver.class, ValueExpressionImpl.class,
-                com.sun.el.ValueExpressionImpl.class,
-                QuarkusResourceResolver.class, BeanEntry.class, SAXCompiler.class, StateUtils.class, ApplicationImpl.class,
-                BeanELResolver.class,
-                RestoreViewSupport.class, UIViewRoot.class, ExceptionQueuedEvent.class, ExceptionQueuedEventContext.class,
-                PostAddToViewEvent.class, PreDestroyApplicationEvent.class, ComponentSystemEvent.class, SystemEvent.class,
-                PreRenderComponentEvent.class));
+        //classes build itens with method reflection support
+        reflectiveClass.produce(new ReflectiveClassBuildItem(true, false, ClassUtils.class, Substitute_FactoryFinder.class,
+                BeanELResolver.class));
     }
 
     @BuildStep
