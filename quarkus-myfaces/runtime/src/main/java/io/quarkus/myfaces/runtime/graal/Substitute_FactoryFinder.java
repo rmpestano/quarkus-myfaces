@@ -26,12 +26,15 @@ import javax.faces.view.ViewDeclarationLanguageFactory;
 import javax.faces.view.facelets.FaceletCacheFactory;
 import javax.faces.view.facelets.TagHandlerDelegateFactory;
 
+import com.oracle.svm.core.annotate.Substitute;
+import com.oracle.svm.core.annotate.TargetClass;
+
 /**
  * A simplified FactoryFinder, it doesn't support multiple classloaders as the original one:
  * https://github.com/apache/myfaces/blob/cfa3c56b8e60d7db3e235b81131fcfa3e5d1326a/api/src/main/java/javax/faces/FactoryFinder.java#L79
  */
-//@TargetClass(className = "javax.faces.FactoryFinder")
-//@Substitute
+@TargetClass(className = "javax.faces.FactoryFinder")
+@Substitute
 public final class Substitute_FactoryFinder {
 
     public static final String APPLICATION_FACTORY = "javax.faces.application.ApplicationFactory";
@@ -132,6 +135,7 @@ public final class Substitute_FactoryFinder {
 
     private static volatile boolean initialized = false;
 
+    @Substitute
     private static void initializeFactoryFinderProviderFactory() {
         if (!initialized) {
             factoryFinderProviderFactoryInstance = Substitute_FactoryFinderProviderFactory.getInstance();
@@ -142,6 +146,7 @@ public final class Substitute_FactoryFinder {
     // ~ End FactoryFinderProvider Support
 
     // avoid instantiation
+    @Substitute
     Substitute_FactoryFinder() {
     }
 
@@ -176,7 +181,7 @@ public final class Substitute_FactoryFinder {
      * @throws NullPointerException
      *         if <code>factoryname</code> is null
      */
-    //@Substitute
+    @Substitute
     public static Object getFactory(String factoryName) throws FacesException {
         if (factoryName == null) {
             throw new NullPointerException("factoryName may not be null");
@@ -218,6 +223,7 @@ public final class Substitute_FactoryFinder {
         }
     }
 
+    @Substitute
     private static Object _getFactory(String factoryName) throws FacesException {
         ClassLoader classLoader = getClassLoader();
 
@@ -283,6 +289,7 @@ public final class Substitute_FactoryFinder {
         return factory;
     }
 
+    @Substitute
     private static Object getInjectionProvider() {
         try {
             // Remember the first call in a webapp over FactoryFinder.getFactory(...) comes in the
@@ -304,6 +311,7 @@ public final class Substitute_FactoryFinder {
         return null;
     }
 
+    @Substitute
     private static void injectAndPostConstruct(Object injectionProvider, Object instance, List injectedBeanStorage) {
         if (injectionProvider != null) {
             try {
@@ -320,6 +328,7 @@ public final class Substitute_FactoryFinder {
         }
     }
 
+    @Substitute
     private static void preDestroy(Object injectionProvider, Object beanEntry) {
         if (injectionProvider != null) {
             try {
@@ -331,6 +340,7 @@ public final class Substitute_FactoryFinder {
         }
     }
 
+    @Substitute
     private static Object getInstance(Object beanEntry) {
         try {
             Method getterMethod = getMethod(beanEntry, "getInstance");
@@ -340,6 +350,7 @@ public final class Substitute_FactoryFinder {
         }
     }
 
+    @Substitute
     private static Object getCreationMetaData(Object beanEntry) {
         try {
             Method getterMethod = getMethod(beanEntry, "getCreationMetaData");
@@ -349,10 +360,12 @@ public final class Substitute_FactoryFinder {
         }
     }
 
+    @Substitute
     private static Method getMethod(Object beanEntry, String methodName) throws NoSuchMethodException {
         return beanEntry.getClass().getDeclaredMethod(methodName);
     }
 
+    @Substitute
     private static void addBeanEntry(Object instance, Object creationMetaData, List injectedBeanStorage) {
         try {
             Class<?> beanEntryClass = Substitute_FactoryFinderProviderFactory.classForName(BEAN_ENTRY_CLASS_NAME);
@@ -365,6 +378,7 @@ public final class Substitute_FactoryFinder {
         }
     }
 
+    @Substitute
     private static Object newFactoryInstance(Class<?> interfaceClass, Iterator<String> classNamesIterator,
             ClassLoader classLoader, Object injectionProvider,
             List injectedBeanStorage) {
@@ -419,7 +433,7 @@ public final class Substitute_FactoryFinder {
         }
     }
 
-    //@Substitute
+    @Substitute
     public static void setFactory(String factoryName, String implName) {
         if (factoryName == null) {
             throw new NullPointerException("factoryName may not be null");
@@ -460,6 +474,7 @@ public final class Substitute_FactoryFinder {
         }
     }
 
+    @Substitute
     private static void _setFactory(String factoryName, String implName) {
         checkFactoryName(factoryName);
 
@@ -472,7 +487,7 @@ public final class Substitute_FactoryFinder {
         classNameList.add(implName);
     }
 
-    //@Substitute
+    @Substitute
     public static void releaseFactories() throws FacesException {
         initializeFactoryFinderProviderFactory();
 
@@ -504,6 +519,7 @@ public final class Substitute_FactoryFinder {
         }
     }
 
+    @Substitute
     private static void _releaseFactories() throws FacesException {
         registeredFactoryNames.clear();
 
@@ -533,12 +549,14 @@ public final class Substitute_FactoryFinder {
         }
     }
 
+    @Substitute
     private static void checkFactoryName(String factoryName) {
         if (!VALID_FACTORY_NAMES.contains(factoryName)) {
             throw new IllegalArgumentException("factoryName '" + factoryName + '\'');
         }
     }
 
+    @Substitute
     private static ClassLoader getClassLoader() {
         try {
             Logger log = Logger.getLogger(FactoryFinder.class.getName());

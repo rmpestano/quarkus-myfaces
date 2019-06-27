@@ -10,8 +10,11 @@ import java.util.logging.Logger;
 import javax.faces.FacesException;
 import javax.faces.context.ExternalContext;
 
-//@TargetClass(className = "javax.faces._FactoryFinderProviderFactory")
-//@Substitute
+import com.oracle.svm.core.annotate.Substitute;
+import com.oracle.svm.core.annotate.TargetClass;
+
+@TargetClass(className = "javax.faces._FactoryFinderProviderFactory")
+@Substitute
 public final class Substitute_FactoryFinderProviderFactory {
     public static final String FACTORY_FINDER_PROVIDER_FACTORY_CLASS_NAME = "org.apache.myfaces.spi" +
             ".FactoryFinderProviderFactory";
@@ -114,7 +117,7 @@ public final class Substitute_FactoryFinderProviderFactory {
         INJECTION_PROVIDER_PRE_DESTROY_METHOD = injectionProviderPreDestroyMethod;
     }
 
-    //@Substitute
+    @Substitute
     public static Object getInstance() {
         if (FACTORY_FINDER_PROVIDER_GET_INSTANCE_METHOD != null) {
             try {
@@ -145,7 +148,7 @@ public final class Substitute_FactoryFinderProviderFactory {
      * @throws NullPointerException if type is null
      * @throws ClassNotFoundException
      */
-    //@Substitute
+    @Substitute
     public static Class<?> classForName(String type) throws ClassNotFoundException {
         if (type == null) {
             throw new NullPointerException("type");
@@ -167,7 +170,7 @@ public final class Substitute_FactoryFinderProviderFactory {
      *
      * @return ClassLoader
      */
-    //@Substitute
+    @Substitute
     protected static ClassLoader getContextClassLoader() {
         if (System.getSecurityManager() != null) {
             try {

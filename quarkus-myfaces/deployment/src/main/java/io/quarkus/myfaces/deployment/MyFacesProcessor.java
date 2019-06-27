@@ -394,12 +394,16 @@ class MyFacesProcessor {
                 "org.primefaces.behavior.ajax.AjaxBehavior",
                 "com.lowagie.text.pdf.MappedRandomAccessFile", "org.apache.myfaces.application_ApplicationUtils",
                 "com.sun.el.util.ReflectionUtil", "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl",
+                "org.primefaces.util.MessageFactory",
                 "javax.faces.component._DeltaStateHelper", "javax.faces.component._DeltaStateHelper$InternalMap"));
 
         //class names build itens with method reflection support
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, false, "org.primefaces.util.ComponentUtils",
                 "org.primefaces.expression.SearchExpressionUtils", "org.primefaces.util.SecurityUtils",
-                "io.quarkus.myfaces.showcase.view.LazyView", "io.quarkus.myfaces.showcase.view.LazyView_ClientProxy"));
+                "org.primefaces.util.LangUtils",
+                "io.quarkus.myfaces.showcase.view.LazyView", "io.quarkus.myfaces.showcase.view.LazyView_ClientProxy",
+                "io.quarkus.myfaces.showcase.view.Car", "io.quarkus.myfaces.showcase.view.LazyCarDataModel",
+                "io.quarkus.myfaces.showcase.view.CarService", "io.quarkus.myfaces.showcase.view.LazySorter"));
 
         //classes build itens with limited reflection support
         reflectiveClass.produce(
@@ -408,19 +412,19 @@ class MyFacesProcessor {
                         MyFacesContainerInitializer.class, DefaultLifecycleProviderFactory.class,
                         RestoreViewSupport.class, UIViewRoot.class, ExceptionQueuedEvent.class,
                         ExceptionQueuedEventContext.class,
-                        PostAddToViewEvent.class, PreDestroyApplicationEvent.class, ComponentSystemEvent.class,
+                        PostAddToViewEvent.class, ComponentSystemEvent.class,
                         SystemEvent.class,
                         PreRenderComponentEvent.class, FacesConfigurator.class, FaceletsInitilializer.class,
-                        TagLibraryConfig.class, String.class,
+                        TagLibraryConfig.class, String.class, Substitute_FactoryFinder.class,
                         Substitute_FactoryFinderProviderFactory.class, FacesContextImplBase.class, FactoryFinder.class,
                         CompositeELResolver.class, javax.el.CompositeELResolver.class, ValueExpressionImpl.class,
                         com.sun.el.ValueExpressionImpl.class, ViewScopeProxyMap.class,
-                        QuarkusResourceResolver.class, BeanEntry.class, SAXCompiler.class, StateUtils.class,
+                        QuarkusResourceResolver.class, SAXCompiler.class, StateUtils.class,
                         ApplicationImpl.class));
 
         //classes build itens with method reflection support
-        reflectiveClass.produce(new ReflectiveClassBuildItem(true, false, ClassUtils.class, Substitute_FactoryFinder.class,
-                BeanELResolver.class));
+        reflectiveClass.produce(new ReflectiveClassBuildItem(true, false, ClassUtils.class,
+                BeanELResolver.class, PreDestroyApplicationEvent.class, BeanEntry.class));
     }
 
     @BuildStep
@@ -444,26 +448,28 @@ class MyFacesProcessor {
                 "META-INF/rsc/myfaces-dev-error-include.xml",
                 "META-INF/services/javax.servlet.ServletContainerInitializer"));
 
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_ar.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_ca.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_cs.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_de.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_en.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_es.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_fr.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_it.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_ja.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_mt.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_nl.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_pl.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_pt_PR.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_ru.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_sk.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_zh_CN.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_zh_HK.properties"));
-        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_zh_TW.properties"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_ar"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_ca"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_cs"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_de"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_en"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_es"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_fr"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_it"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_ja"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_mt"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_nl"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_pl"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_pt_PR"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_ru"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_sk"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_zh_CN"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_zh_HK"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_zh_TW"));
         resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.el.PrivateMessages"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("org.primefaces.Messages"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("org.primefaces.Messages_en"));
     }
 
     private Optional<String> resolveProjectStage(Config config) {
