@@ -10,11 +10,8 @@ import java.util.logging.Logger;
 import javax.faces.FacesException;
 import javax.faces.context.ExternalContext;
 
-import com.oracle.svm.core.annotate.Substitute;
-import com.oracle.svm.core.annotate.TargetClass;
-
-@TargetClass(className = "javax.faces._FactoryFinderProviderFactory")
-@Substitute
+//@TargetClass(className = "javax.faces._FactoryFinderProviderFactory")
+//@Substitute
 public final class Substitute_FactoryFinderProviderFactory {
     public static final String FACTORY_FINDER_PROVIDER_FACTORY_CLASS_NAME = "org.apache.myfaces.spi" +
             ".FactoryFinderProviderFactory";
@@ -44,6 +41,9 @@ public final class Substitute_FactoryFinderProviderFactory {
     public static final Method INJECTION_PROVIDER_PRE_DESTROY_METHOD;
 
     static {
+        Logger.getLogger(Substitute_FactoryFinderProviderFactory.class.getName())
+                .info("Calling GRAAL FactoryFinderProviderFactory!");
+
         Class factoryFinderFactoryClass = null;
         Method factoryFinderproviderFactoryGetMethod = null;
         Method factoryFinderproviderFactoryGetFactoryFinderMethod = null;
@@ -97,6 +97,7 @@ public final class Substitute_FactoryFinderProviderFactory {
             }
         } catch (Exception e) {
             // no op
+            Logger.getLogger(Substitute_FactoryFinder.class.getName()).log(Level.SEVERE, "error in graal factory finder", e);
         }
 
         FACTORY_FINDER_PROVIDER_FACTORY_CLASS = factoryFinderFactoryClass;
@@ -117,7 +118,7 @@ public final class Substitute_FactoryFinderProviderFactory {
         INJECTION_PROVIDER_PRE_DESTROY_METHOD = injectionProviderPreDestroyMethod;
     }
 
-    @Substitute
+    //@Substitute
     public static Object getInstance() {
         if (FACTORY_FINDER_PROVIDER_GET_INSTANCE_METHOD != null) {
             try {
@@ -148,7 +149,7 @@ public final class Substitute_FactoryFinderProviderFactory {
      * @throws NullPointerException if type is null
      * @throws ClassNotFoundException
      */
-    @Substitute
+    //@Substitute
     public static Class<?> classForName(String type) throws ClassNotFoundException {
         if (type == null) {
             throw new NullPointerException("type");
@@ -170,7 +171,7 @@ public final class Substitute_FactoryFinderProviderFactory {
      *
      * @return ClassLoader
      */
-    @Substitute
+    //@Substitute
     protected static ClassLoader getContextClassLoader() {
         if (System.getSecurityManager() != null) {
             try {

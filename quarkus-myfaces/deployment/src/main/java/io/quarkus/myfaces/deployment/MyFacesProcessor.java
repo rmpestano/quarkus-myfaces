@@ -76,6 +76,7 @@ import org.apache.myfaces.push.cdi.*;
 import org.apache.myfaces.renderkit.ErrorPageWriter;
 import org.apache.myfaces.renderkit.RenderKitFactoryImpl;
 import org.apache.myfaces.renderkit.html.HtmlRenderKitImpl;
+import org.apache.myfaces.spi.FactoryFinderProviderFactory;
 import org.apache.myfaces.spi.impl.DefaultWebConfigProviderFactory;
 import org.apache.myfaces.util.ClassUtils;
 import org.apache.myfaces.view.ViewDeclarationLanguageFactoryImpl;
@@ -83,6 +84,7 @@ import org.apache.myfaces.view.ViewScopeProxyMap;
 import org.apache.myfaces.view.facelets.compiler.SAXCompiler;
 import org.apache.myfaces.view.facelets.compiler.TagLibraryConfig;
 import org.apache.myfaces.view.facelets.impl.FaceletCacheFactoryImpl;
+import org.apache.myfaces.view.facelets.tag.MetaRulesetImpl;
 import org.apache.myfaces.view.facelets.tag.jsf.TagHandlerDelegateFactoryImpl;
 import org.apache.myfaces.webapp.FaceletsInitilializer;
 import org.apache.myfaces.webapp.MyFacesContainerInitializer;
@@ -111,8 +113,6 @@ import io.quarkus.myfaces.runtime.MyFacesTemplate;
 import io.quarkus.myfaces.runtime.QuarkusApplicationFactory;
 import io.quarkus.myfaces.runtime.QuarkusServletContextListener;
 import io.quarkus.myfaces.runtime.exception.QuarkusExceptionHandlerFactory;
-import io.quarkus.myfaces.runtime.graal.Substitute_FactoryFinder;
-import io.quarkus.myfaces.runtime.graal.Substitute_FactoryFinderProviderFactory;
 import io.quarkus.myfaces.runtime.scopes.QuarkusFacesScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewTransientScopeContext;
@@ -397,7 +397,7 @@ class MyFacesProcessor {
                 "org.primefaces.util.MessageFactory",
                 "javax.faces.component._DeltaStateHelper", "javax.faces.component._DeltaStateHelper$InternalMap"));
 
-        //class names build itens with method reflection support
+        //class names build items with method reflection support
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, false, "org.primefaces.util.ComponentUtils",
                 "org.primefaces.expression.SearchExpressionUtils", "org.primefaces.util.SecurityUtils",
                 "org.primefaces.util.LangUtils",
@@ -405,7 +405,7 @@ class MyFacesProcessor {
                 "io.quarkus.myfaces.showcase.view.Car", "io.quarkus.myfaces.showcase.view.LazyCarDataModel",
                 "io.quarkus.myfaces.showcase.view.CarService", "io.quarkus.myfaces.showcase.view.LazySorter"));
 
-        //classes build itens with limited reflection support
+        //classes build items with limited reflection support
         reflectiveClass.produce(
                 new ReflectiveClassBuildItem(false, false, ExceptionQueuedEvent.class, DefaultWebConfigProviderFactory.class,
                         ErrorPageWriter.class, DocumentBuilderFactoryImpl.class, FuncLocalPart.class, FuncNot.class,
@@ -415,16 +415,29 @@ class MyFacesProcessor {
                         PostAddToViewEvent.class, ComponentSystemEvent.class,
                         SystemEvent.class,
                         PreRenderComponentEvent.class, FacesConfigurator.class, FaceletsInitilializer.class,
-                        TagLibraryConfig.class, String.class, Substitute_FactoryFinder.class,
-                        Substitute_FactoryFinderProviderFactory.class, FacesContextImplBase.class, FactoryFinder.class,
+                        TagLibraryConfig.class, String.class, FacesContextImplBase.class,
                         CompositeELResolver.class, javax.el.CompositeELResolver.class, ValueExpressionImpl.class,
                         com.sun.el.ValueExpressionImpl.class, ViewScopeProxyMap.class,
                         QuarkusResourceResolver.class, SAXCompiler.class, StateUtils.class,
                         ApplicationImpl.class));
 
-        //classes build itens with method reflection support
+        //classes build items with method reflection support
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, false, ClassUtils.class,
-                BeanELResolver.class, PreDestroyApplicationEvent.class, BeanEntry.class));
+                FactoryFinderProviderFactory.class,
+                FactoryFinder.class,
+                BeanELResolver.class, PreDestroyApplicationEvent.class, BeanEntry.class, MetaRulesetImpl.class));
+
+        reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, FactoryFinderProviderFactory.class));
+    }
+
+    @BuildStep
+    @Record(STATIC_INIT)
+    void runtimeReinit(BuildProducer<RuntimeReinitializedClassBuildItem> runtimeReinitProducer) {
+        /*
+         * runtimeReinitProducer
+         * .produce(new RuntimeReinitializedClassBuildItem(Substitute_FactoryFinderProviderFactory.class.getName()));
+         * runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(Substitute_FactoryFinder.class.getName()));
+         */
     }
 
     @BuildStep
