@@ -40,7 +40,6 @@ import javax.faces.view.ViewScoped;
 import javax.faces.view.facelets.FaceletsResourceResolver;
 import javax.faces.webapp.FacesServlet;
 
-import org.apache.el.ValueExpressionImpl;
 import org.apache.myfaces.application.ApplicationFactoryImpl;
 import org.apache.myfaces.application.ApplicationImpl;
 import org.apache.myfaces.application.viewstate.StateUtils;
@@ -94,6 +93,7 @@ import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 
+import com.sun.el.ValueExpressionImpl;
 import com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl;
 import com.sun.org.apache.xpath.internal.functions.FuncLocalPart;
 import com.sun.org.apache.xpath.internal.functions.FuncNot;
@@ -481,6 +481,8 @@ class MyFacesProcessor {
         resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_zh_HK"));
         resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.faces.Messages_zh_TW"));
         resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.el.PrivateMessages"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.servlet.LocalStrings"));
+        resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("javax.el.LocalStrings"));
         resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("org.primefaces.Messages"));
         resourceBundleBuildItem.produce(new SubstrateResourceBundleBuildItem("org.primefaces.Messages_en"));
     }
