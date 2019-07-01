@@ -31,6 +31,7 @@ import javax.faces.component.FacesComponent;
 import javax.faces.component.UIViewRoot;
 import javax.faces.component.behavior.FacesBehavior;
 import javax.faces.convert.FacesConverter;
+import javax.faces.convert.NumberConverter;
 import javax.faces.event.*;
 import javax.faces.push.PushContext;
 import javax.faces.render.FacesBehaviorRenderer;
@@ -64,7 +65,9 @@ import org.apache.myfaces.context.FacesContextFactoryImpl;
 import org.apache.myfaces.context.PartialViewContextFactoryImpl;
 import org.apache.myfaces.context.servlet.FacesContextImplBase;
 import org.apache.myfaces.context.servlet.ServletFlashFactoryImpl;
+import org.apache.myfaces.el.ELResolverBuilderForFaces;
 import org.apache.myfaces.el.resolver.CompositeELResolver;
+import org.apache.myfaces.el.resolver.ImportHandlerResolver;
 import org.apache.myfaces.flow.FlowHandlerFactoryImpl;
 import org.apache.myfaces.flow.cdi.FlowBuilderFactoryBean;
 import org.apache.myfaces.flow.cdi.FlowScopeBeanHolder;
@@ -78,13 +81,17 @@ import org.apache.myfaces.renderkit.html.HtmlRenderKitImpl;
 import org.apache.myfaces.spi.FactoryFinderProviderFactory;
 import org.apache.myfaces.spi.impl.DefaultWebConfigProviderFactory;
 import org.apache.myfaces.util.ClassUtils;
+import org.apache.myfaces.util.ExternalContextUtils;
 import org.apache.myfaces.view.ViewDeclarationLanguageFactoryImpl;
 import org.apache.myfaces.view.ViewScopeProxyMap;
 import org.apache.myfaces.view.facelets.compiler.SAXCompiler;
 import org.apache.myfaces.view.facelets.compiler.TagLibraryConfig;
 import org.apache.myfaces.view.facelets.impl.FaceletCacheFactoryImpl;
 import org.apache.myfaces.view.facelets.tag.MetaRulesetImpl;
+import org.apache.myfaces.view.facelets.tag.MethodRule;
+import org.apache.myfaces.view.facelets.tag.jsf.ComponentSupport;
 import org.apache.myfaces.view.facelets.tag.jsf.TagHandlerDelegateFactoryImpl;
+import org.apache.myfaces.webapp.AbstractFacesInitializer;
 import org.apache.myfaces.webapp.FaceletsInitilializer;
 import org.apache.myfaces.webapp.MyFacesContainerInitializer;
 import org.apache.myfaces.webapp.StartupServletContextListener;
@@ -415,6 +422,7 @@ class MyFacesProcessor {
                         PostAddToViewEvent.class, ComponentSystemEvent.class,
                         SystemEvent.class,
                         PreRenderComponentEvent.class, FacesConfigurator.class, FaceletsInitilializer.class,
+                        ImportHandlerResolver.class,
                         TagLibraryConfig.class, String.class, FacesContextImplBase.class,
                         CompositeELResolver.class, javax.el.CompositeELResolver.class, ValueExpressionImpl.class,
                         com.sun.el.ValueExpressionImpl.class, ViewScopeProxyMap.class,
@@ -423,11 +431,11 @@ class MyFacesProcessor {
 
         //classes build items with method reflection support
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, false, ClassUtils.class,
-                FactoryFinderProviderFactory.class,
-                FactoryFinder.class,
+                FactoryFinderProviderFactory.class, NumberConverter.class, ComponentSupport.class,
+                MethodRule.class,
+                FactoryFinder.class, ELResolverBuilderForFaces.class, AbstractFacesInitializer.class,
+                ExternalContextUtils.class,
                 BeanELResolver.class, PreDestroyApplicationEvent.class, BeanEntry.class, MetaRulesetImpl.class));
-
-        reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, FactoryFinderProviderFactory.class));
     }
 
     @BuildStep
