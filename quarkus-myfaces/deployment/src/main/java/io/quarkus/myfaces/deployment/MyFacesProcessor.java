@@ -30,6 +30,7 @@ import javax.faces.application.StateManager;
 import javax.faces.component.FacesComponent;
 import javax.faces.component.UIViewRoot;
 import javax.faces.component.behavior.FacesBehavior;
+import javax.faces.component.visit.VisitContextFactory;
 import javax.faces.convert.FacesConverter;
 import javax.faces.convert.NumberConverter;
 import javax.faces.event.*;
@@ -41,7 +42,6 @@ import javax.faces.view.ViewScoped;
 import javax.faces.view.facelets.FaceletsResourceResolver;
 import javax.faces.webapp.FacesServlet;
 
-import org.apache.myfaces.application.ApplicationFactoryImpl;
 import org.apache.myfaces.application.ApplicationImpl;
 import org.apache.myfaces.application.viewstate.StateUtils;
 import org.apache.myfaces.cdi.FacesScoped;
@@ -52,45 +52,31 @@ import org.apache.myfaces.cdi.model.FacesDataModelClassBeanHolder;
 import org.apache.myfaces.cdi.util.BeanEntry;
 import org.apache.myfaces.cdi.view.ViewScopeBeanHolder;
 import org.apache.myfaces.cdi.view.ViewTransientScoped;
-import org.apache.myfaces.component.search.SearchExpressionContextFactoryImpl;
-import org.apache.myfaces.component.visit.VisitContextFactoryImpl;
 import org.apache.myfaces.config.FacesConfigurator;
 import org.apache.myfaces.config.MyfacesConfig;
 import org.apache.myfaces.config.annotation.CdiAnnotationProviderExtension;
 import org.apache.myfaces.config.annotation.DefaultLifecycleProviderFactory;
 import org.apache.myfaces.config.element.NamedEvent;
-import org.apache.myfaces.context.ExceptionHandlerFactoryImpl;
-import org.apache.myfaces.context.ExternalContextFactoryImpl;
-import org.apache.myfaces.context.FacesContextFactoryImpl;
-import org.apache.myfaces.context.PartialViewContextFactoryImpl;
 import org.apache.myfaces.context.servlet.FacesContextImplBase;
-import org.apache.myfaces.context.servlet.ServletFlashFactoryImpl;
 import org.apache.myfaces.el.ELResolverBuilderForFaces;
 import org.apache.myfaces.el.resolver.CompositeELResolver;
 import org.apache.myfaces.el.resolver.ImportHandlerResolver;
-import org.apache.myfaces.flow.FlowHandlerFactoryImpl;
 import org.apache.myfaces.flow.cdi.FlowBuilderFactoryBean;
 import org.apache.myfaces.flow.cdi.FlowScopeBeanHolder;
-import org.apache.myfaces.lifecycle.ClientWindowFactoryImpl;
-import org.apache.myfaces.lifecycle.LifecycleFactoryImpl;
 import org.apache.myfaces.lifecycle.RestoreViewSupport;
 import org.apache.myfaces.push.cdi.*;
 import org.apache.myfaces.renderkit.ErrorPageWriter;
-import org.apache.myfaces.renderkit.RenderKitFactoryImpl;
-import org.apache.myfaces.renderkit.html.HtmlRenderKitImpl;
 import org.apache.myfaces.spi.FactoryFinderProviderFactory;
+import org.apache.myfaces.spi.InjectionProviderFactory;
 import org.apache.myfaces.spi.impl.DefaultWebConfigProviderFactory;
 import org.apache.myfaces.util.ClassUtils;
 import org.apache.myfaces.util.ExternalContextUtils;
-import org.apache.myfaces.view.ViewDeclarationLanguageFactoryImpl;
 import org.apache.myfaces.view.ViewScopeProxyMap;
 import org.apache.myfaces.view.facelets.compiler.SAXCompiler;
 import org.apache.myfaces.view.facelets.compiler.TagLibraryConfig;
-import org.apache.myfaces.view.facelets.impl.FaceletCacheFactoryImpl;
 import org.apache.myfaces.view.facelets.tag.MetaRulesetImpl;
 import org.apache.myfaces.view.facelets.tag.MethodRule;
 import org.apache.myfaces.view.facelets.tag.jsf.ComponentSupport;
-import org.apache.myfaces.view.facelets.tag.jsf.TagHandlerDelegateFactoryImpl;
 import org.apache.myfaces.webapp.AbstractFacesInitializer;
 import org.apache.myfaces.webapp.FaceletsInitilializer;
 import org.apache.myfaces.webapp.MyFacesContainerInitializer;
@@ -117,9 +103,7 @@ import io.quarkus.deployment.builditem.ExtensionSslNativeSupportBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.substrate.*;
 import io.quarkus.myfaces.runtime.MyFacesTemplate;
-import io.quarkus.myfaces.runtime.QuarkusApplicationFactory;
 import io.quarkus.myfaces.runtime.QuarkusServletContextListener;
-import io.quarkus.myfaces.runtime.exception.QuarkusExceptionHandlerFactory;
 import io.quarkus.myfaces.runtime.scopes.QuarkusFacesScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewTransientScopeContext;
@@ -163,24 +147,22 @@ class MyFacesProcessor {
     };
 
     private static final String[] FACES_FACTORIES = {
-            QuarkusApplicationFactory.class.getName(),
-            QuarkusExceptionHandlerFactory.class.getName(),
-            ApplicationFactoryImpl.class.getName(),
-            ExternalContextFactoryImpl.class.getName(),
-            FacesContextFactoryImpl.class.getName(),
-            LifecycleFactoryImpl.class.getName(),
-            RenderKitFactoryImpl.class.getName(),
-            PartialViewContextFactoryImpl.class.getName(),
-            VisitContextFactoryImpl.class.getName(),
-            ViewDeclarationLanguageFactoryImpl.class.getName(),
-            ExceptionHandlerFactoryImpl.class.getName(),
-            TagHandlerDelegateFactoryImpl.class.getName(),
-            HtmlRenderKitImpl.class.getName(),
-            SearchExpressionContextFactoryImpl.class.getName(),
-            FlowHandlerFactoryImpl.class.getName(),
-            ClientWindowFactoryImpl.class.getName(),
-            ServletFlashFactoryImpl.class.getName(),
-            FaceletCacheFactoryImpl.class.getName()
+            FactoryFinder.APPLICATION_FACTORY,
+            FactoryFinder.RENDER_KIT_FACTORY,
+            FactoryFinder.LIFECYCLE_FACTORY,
+            FactoryFinder.FACES_CONTEXT_FACTORY,
+            FactoryFinder.VIEW_DECLARATION_LANGUAGE_FACTORY,
+            FactoryFinder.VISIT_CONTEXT_FACTORY,
+            FactoryFinder.PARTIAL_VIEW_CONTEXT_FACTORY,
+            FactoryFinder.EXCEPTION_HANDLER_FACTORY,
+            FactoryFinder.FACELET_CACHE_FACTORY,
+            FactoryFinder.CLIENT_WINDOW_FACTORY,
+            FactoryFinder.SEARCH_EXPRESSION_CONTEXT_FACTORY,
+            FactoryFinder.TAG_HANDLER_DELEGATE_FACTORY,
+            FactoryFinder.FLASH_FACTORY,
+            FactoryFinder.EXTERNAL_CONTEXT_FACTORY,
+            FactoryFinder.FLOW_HANDLER_FACTORY,
+            InjectionProviderFactory.class.getName()
     };
 
     @BuildStep
@@ -379,9 +361,18 @@ class MyFacesProcessor {
                 .map(ClassInfo::toString)
                 .collect(Collectors.toList());
 
+        List<String> facesFactoriesImpls = new ArrayList<>();
+        Stream.of(FACES_FACTORIES).forEach(factory -> {
+            facesFactoriesImpls.add(factory.toString());
+            for (ClassInfo factoryImpl : combinedIndex.getIndex().getAllKnownSubclasses(DotName.createSimple(factory))) {
+                MyFacesTemplate.registerFactory(factory, factoryImpl.toString());
+                facesFactoriesImpls.add(factoryImpl.toString());
+            }
+        });
+
         Set<String> collectedClassesForReflection = Stream
                 .of(tagHandlers, converterHandlers, componentHandlers, validatorHandlers, renderers, primefacesWidgets,
-                        components, converters, valueExpressions, Arrays.asList(FACES_FACTORIES))
+                        components, converters, valueExpressions, facesFactoriesImpls)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toSet());
 

@@ -1,10 +1,7 @@
 package io.quarkus.myfaces.runtime;
 
 import java.lang.annotation.Annotation;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import io.quarkus.runtime.annotations.Template;
 
@@ -12,6 +9,7 @@ import io.quarkus.runtime.annotations.Template;
 public class MyFacesTemplate {
 
     public static final Map<Class<? extends Annotation>, Set<Class<?>>> ANNOTATED_CLASSES = new LinkedHashMap<>();
+    public static final Map<String, List<String>> FACES_FACTORIES = new HashMap<>();
 
     @SuppressWarnings("unchecked") //cast to (Class<? extends Annotation>)
     public void registerAnnotatedClass(String annotationName, String clazzName) {
@@ -27,4 +25,10 @@ public class MyFacesTemplate {
             throw new IllegalStateException(e);
         }
     }
+
+    public static void registerFactory(String factory, String factoryImpl) {
+        List<String> factories = FACES_FACTORIES.computeIfAbsent(factory, $ -> new ArrayList<>());
+        factories.add(factoryImpl);
+    }
+
 }
