@@ -30,7 +30,6 @@ import javax.faces.application.StateManager;
 import javax.faces.component.FacesComponent;
 import javax.faces.component.UIViewRoot;
 import javax.faces.component.behavior.FacesBehavior;
-import javax.faces.component.visit.VisitContextFactory;
 import javax.faces.convert.FacesConverter;
 import javax.faces.convert.NumberConverter;
 import javax.faces.event.*;
@@ -101,7 +100,10 @@ import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.ExtensionSslNativeSupportBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
-import io.quarkus.deployment.builditem.substrate.*;
+import io.quarkus.deployment.builditem.substrate.ReflectiveClassBuildItem;
+import io.quarkus.deployment.builditem.substrate.RuntimeReinitializedClassBuildItem;
+import io.quarkus.deployment.builditem.substrate.SubstrateResourceBuildItem;
+import io.quarkus.deployment.builditem.substrate.SubstrateResourceBundleBuildItem;
 import io.quarkus.myfaces.runtime.MyFacesTemplate;
 import io.quarkus.myfaces.runtime.QuarkusServletContextListener;
 import io.quarkus.myfaces.runtime.scopes.QuarkusFacesScopeContext;
@@ -305,7 +307,8 @@ class MyFacesProcessor {
 
     @BuildStep(applicationArchiveMarkers = { "org/primefaces/component", "org/apache/myfaces/view", "javax/faces/component" })
     @Record(STATIC_INIT)
-    void registerForReflection(BuildProducer<ReflectiveClassBuildItem> reflectiveClass, CombinedIndexBuildItem combinedIndex) {
+    void registerForReflection(MyFacesTemplate template, BuildProducer<ReflectiveClassBuildItem> reflectiveClass,
+            CombinedIndexBuildItem combinedIndex) {
 
         List<String> tagHandlers = combinedIndex.getIndex()
                 .getAllKnownSubclasses(DotName.createSimple("javax.faces.view.facelets.TagHandler"))
@@ -361,18 +364,18 @@ class MyFacesProcessor {
                 .map(ClassInfo::toString)
                 .collect(Collectors.toList());
 
-        List<String> facesFactoriesImpls = new ArrayList<>();
+        List<String> facesFactories = new ArrayList<>();
         Stream.of(FACES_FACTORIES).forEach(factory -> {
-            facesFactoriesImpls.add(factory.toString());
+            facesFactories.add(factory);
             for (ClassInfo factoryImpl : combinedIndex.getIndex().getAllKnownSubclasses(DotName.createSimple(factory))) {
-                MyFacesTemplate.registerFactory(factory, factoryImpl.toString());
-                facesFactoriesImpls.add(factoryImpl.toString());
+                template.registerFactory(factory, factoryImpl.toString());
+                facesFactories.add(factoryImpl.toString());
             }
         });
 
         Set<String> collectedClassesForReflection = Stream
                 .of(tagHandlers, converterHandlers, componentHandlers, validatorHandlers, renderers, primefacesWidgets,
-                        components, converters, valueExpressions, facesFactoriesImpls)
+                        components, converters, valueExpressions, facesFactories)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toSet());
 
@@ -398,7 +401,7 @@ class MyFacesProcessor {
         //class names build items with method reflection support
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, false, "org.primefaces.util.ComponentUtils",
                 "org.primefaces.expression.SearchExpressionUtils", "org.primefaces.util.SecurityUtils",
-                "org.primefaces.util.LangUtils",
+                "org.primefaces.util.LangUtils", "javax.faces._FactoryFinderProviderFactory",
                 "io.quarkus.myfaces.showcase.view.LazyView", "io.quarkus.myfaces.showcase.view.LazyView_ClientProxy",
                 "io.quarkus.myfaces.showcase.view.Car", "io.quarkus.myfaces.showcase.view.LazyCarDataModel",
                 "io.quarkus.myfaces.showcase.view.CarService", "io.quarkus.myfaces.showcase.view.LazySorter"));

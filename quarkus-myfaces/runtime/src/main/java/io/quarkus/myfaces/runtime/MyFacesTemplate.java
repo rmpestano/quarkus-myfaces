@@ -26,7 +26,7 @@ public class MyFacesTemplate {
         }
     }
 
-    public static void registerFactory(String factory, String factoryImpl) {
+    public void registerFactory(String factory, String factoryImpl) {
         List<String> factories = FACES_FACTORIES.computeIfAbsent(factory, $ -> new ArrayList<>());
         factories.add(factoryImpl);
     }
