@@ -106,6 +106,7 @@ import io.quarkus.deployment.builditem.substrate.SubstrateResourceBuildItem;
 import io.quarkus.deployment.builditem.substrate.SubstrateResourceBundleBuildItem;
 import io.quarkus.myfaces.runtime.MyFacesTemplate;
 import io.quarkus.myfaces.runtime.QuarkusServletContextListener;
+import io.quarkus.myfaces.runtime.renderkit.QuarkusHtmlRenderKit;
 import io.quarkus.myfaces.runtime.scopes.QuarkusFacesScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewTransientScopeContext;
@@ -134,6 +135,7 @@ class MyFacesProcessor {
             WebsocketViewBean.class,
             WebsocketApplicationBean.class,
             FlowBuilderFactoryBean.class,
+            QuarkusHtmlRenderKit.class,
             FlowScopeBeanHolder.class
     };
 
@@ -364,6 +366,12 @@ class MyFacesProcessor {
                 .map(ClassInfo::toString)
                 .collect(Collectors.toList());
 
+        List<String> clientBehaviorRenderers = combinedIndex.getIndex()
+                .getAllKnownSubclasses(DotName.createSimple("javax.faces.render.ClientBehaviorRenderer"))
+                .stream()
+                .map(ClassInfo::toString)
+                .collect(Collectors.toList());
+
         List<String> facesFactories = new ArrayList<>();
         Stream.of(FACES_FACTORIES).forEach(factory -> {
             facesFactories.add(factory);
@@ -375,7 +383,7 @@ class MyFacesProcessor {
 
         Set<String> collectedClassesForReflection = Stream
                 .of(tagHandlers, converterHandlers, componentHandlers, validatorHandlers, renderers, primefacesWidgets,
-                        components, converters, valueExpressions, facesFactories)
+                        components, converters, valueExpressions, facesFactories, clientBehaviorRenderers)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toSet());
 
@@ -402,6 +410,7 @@ class MyFacesProcessor {
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, false, "org.primefaces.util.ComponentUtils",
                 "org.primefaces.expression.SearchExpressionUtils", "org.primefaces.util.SecurityUtils",
                 "org.primefaces.util.LangUtils", "javax.faces._FactoryFinderProviderFactory",
+                "org.primefaces.component.staticmessage.StaticMessageBase",
                 "io.quarkus.myfaces.showcase.view.LazyView", "io.quarkus.myfaces.showcase.view.LazyView_ClientProxy",
                 "io.quarkus.myfaces.showcase.view.Car", "io.quarkus.myfaces.showcase.view.LazyCarDataModel",
                 "io.quarkus.myfaces.showcase.view.CarService", "io.quarkus.myfaces.showcase.view.LazySorter"));
@@ -430,6 +439,9 @@ class MyFacesProcessor {
                 FactoryFinder.class, ELResolverBuilderForFaces.class, AbstractFacesInitializer.class,
                 ExternalContextUtils.class,
                 BeanELResolver.class, PreDestroyApplicationEvent.class, BeanEntry.class, MetaRulesetImpl.class));
+
+        template.registerComponents(components);
+        template.registerClientBehaviour(clientBehaviorRenderers);
     }
 
     @BuildStep
