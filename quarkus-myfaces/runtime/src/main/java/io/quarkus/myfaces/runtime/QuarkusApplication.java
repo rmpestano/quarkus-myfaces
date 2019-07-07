@@ -15,38 +15,25 @@
  */
 package io.quarkus.myfaces.runtime;
 
-import javax.el.CompositeELResolver;
 import javax.el.ELResolver;
 import javax.faces.application.Application;
 import javax.faces.application.ApplicationWrapper;
-import javax.faces.context.FacesContext;
 
-import org.apache.myfaces.config.MyfacesConfig;
-import org.apache.myfaces.config.RuntimeConfig;
-
-import io.quarkus.myfaces.runtime.spi.QuarkusELResolverBuilder;
+import io.quarkus.myfaces.runtime.spi.QuarkusCdiELResolver;
 
 public class QuarkusApplication extends ApplicationWrapper {
 
-    private CompositeELResolver elResolver;
-
-    private final RuntimeConfig runtimeConfig;
-    private final MyfacesConfig myfacesConfig;
+    private QuarkusCdiELResolver elResolver;
 
     public QuarkusApplication(Application delegate) {
         super(delegate);
-
-        runtimeConfig = RuntimeConfig.getCurrentInstance(FacesContext.getCurrentInstance());
-        myfacesConfig = MyfacesConfig.getCurrentInstance(FacesContext.getCurrentInstance());
     }
 
     @Override
     public final ELResolver getELResolver() {
         if (elResolver == null) {
-            elResolver = new CompositeELResolver();
-            new QuarkusELResolverBuilder(runtimeConfig, myfacesConfig).build(elResolver);
+            elResolver = new QuarkusCdiELResolver();
         }
-
         return elResolver;
     }
 

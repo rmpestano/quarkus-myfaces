@@ -15,21 +15,15 @@ limitations under the License.
  */
 package io.quarkus.myfaces.runtime;
 
-import javax.enterprise.inject.spi.CDI;
-import javax.faces.annotation.FacesConfig;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
-
-import org.apache.myfaces.cdi.config.FacesConfigBeanHolder;
 
 @WebListener
 public class QuarkusServletContextListener implements ServletContextListener {
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
-        FacesConfigBeanHolder facesConfigBeanHolder = CDI.current().select(FacesConfigBeanHolder.class).get();
-        facesConfigBeanHolder.setFacesConfigVersion(FacesConfig.Version.JSF_2_3);
     }
 
     @Override

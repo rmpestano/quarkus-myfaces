@@ -15,18 +15,36 @@
  */
 package io.quarkus.myfaces.runtime.spi;
 
-import java.net.URL;
-
-import org.apache.myfaces.view.facelets.impl.DefaultResourceResolver;
-
-// prevents a NPE, see #3
-public class QuarkusResourceResolver extends DefaultResourceResolver {
-    @Override
-    public URL resolveUrl(String resource) {
-        URL resourceUrl = super.resolveUrl(resource);
-        if (resourceUrl == null && resource.equals("/")) {
-            resourceUrl = super.resolveUrl("/index.xhtml");
-        }
-        return resourceUrl;
-    }
-}
+/*
+ * public class QuarkusResourceResolver extends ResourceHandlerWrapper {
+ * 
+ * private static final Logger LOG = Logger.getLogger(QuarkusResourceResolver.class.getName());
+ * 
+ * private ResourceHandler wrapped;
+ * 
+ * public QuarkusResourceResolver(ResourceHandler wrapped) {
+ * this.wrapped = wrapped;
+ * }
+ * 
+ * 
+ * @Override
+ * public Resource createResource(String resourceName) {
+ * return super.createResource(resourceName);
+ * }
+ * 
+ * @Override
+ * public ViewResource createViewResource(FacesContext context, String resourceName) {
+ * return super.createViewResource(context, resourceName);
+ * }
+ * 
+ * public URL resolveUrl(String path) {
+ * ViewResource faceletResource = wrapped.createViewResource(FacesContext.getCurrentInstance(), path);
+ * if (faceletResource != null) {
+ * return faceletResource.getURL();
+ * } else if(path.equals("/")) {
+ * faceletResource = wrapped.createViewResource(FacesContext.getCurrentInstance(), "/index.xhtml");
+ * }
+ * return faceletResource.getURL();
+ * }
+ * }
+ */

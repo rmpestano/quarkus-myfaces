@@ -15,16 +15,12 @@
  */
 package io.quarkus.myfaces.runtime.spi;
 
-import java.io.IOException;
 import java.lang.annotation.Annotation;
-import java.net.URL;
-import java.util.Collections;
+import java.net.URI;
 import java.util.Map;
 import java.util.Set;
 
-import javax.faces.context.ExternalContext;
-
-import org.apache.myfaces.spi.AnnotationProvider;
+import com.sun.faces.spi.AnnotationProvider;
 
 import io.quarkus.myfaces.runtime.MyFacesTemplate;
 
@@ -34,13 +30,7 @@ import io.quarkus.myfaces.runtime.MyFacesTemplate;
 public class QuarkusAnnotationProvider extends AnnotationProvider {
 
     @Override
-    public Map<Class<? extends Annotation>, Set<Class<?>>> getAnnotatedClasses(ExternalContext ctx) {
+    public Map<Class<? extends Annotation>, Set<Class<?>>> getAnnotatedClasses(Set<URI> urls) {
         return MyFacesTemplate.ANNOTATED_CLASSES;
     }
-
-    @Override
-    public Set<URL> getBaseUrls(ExternalContext ctx) throws IOException {
-        return Collections.emptySet();
-    }
-
 }

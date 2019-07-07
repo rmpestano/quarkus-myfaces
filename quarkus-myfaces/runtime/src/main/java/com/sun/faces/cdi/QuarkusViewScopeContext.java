@@ -13,33 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.quarkus.myfaces.runtime.scopes;
+package com.sun.faces.cdi;
 
 import java.lang.annotation.Annotation;
 import java.util.Collection;
 
 import javax.enterprise.context.spi.Contextual;
 import javax.enterprise.context.spi.CreationalContext;
-import javax.enterprise.inject.spi.CDI;
-
-import org.apache.myfaces.cdi.view.ViewTransientScopeContextImpl;
-import org.apache.myfaces.cdi.view.ViewTransientScoped;
+import javax.faces.context.FacesContext;
+import javax.faces.view.ViewScoped;
 
 import io.quarkus.arc.ContextInstanceHandle;
 import io.quarkus.arc.InjectableContext;
 
-public class QuarkusViewTransientScopeContext implements InjectableContext {
+public class QuarkusViewScopeContext implements InjectableContext {
 
-    private ViewTransientScopeContextImpl wrapped;
+    private ViewScopeContext viewScopeContext = new ViewScopeContext();
 
-    public QuarkusViewTransientScopeContext() {
-    }
-
-    public ViewTransientScopeContextImpl getWrapped() {
-        if (wrapped == null) {
-            wrapped = new ViewTransientScopeContextImpl(CDI.current().getBeanManager());
-        }
-        return wrapped;
+    public QuarkusViewScopeContext() {
     }
 
     @Override
@@ -49,32 +40,37 @@ public class QuarkusViewTransientScopeContext implements InjectableContext {
 
     @Override
     public void destroy() {
-
+        FacesContext facesContext = FacesContext.getCurrentInstance();
+        ViewScopeManager.getInstance(facesContext).getContextManager().clear(facesContext);
     }
 
     @Override
-    public void destroy(Contextual<?> contextual) {
-        getWrapped().destroy(contextual);
+    public void destroy(Contextual contextual) {
+        FacesContext facesContext = FacesContext.getCurrentInstance();
+        ViewScopeContextManager contextManager = ViewScopeManager.getInstance(facesContext).getContextManager();
+        ViewScopeContextObject viewScopeObject = contextManager.getViewScopeObject(facesContext, contextual);
+        Object instance = viewScopeContext.get(contextual);
+        contextual.destroy(instance, viewScopeObject.getCreationalContext());
     }
 
     @Override
     public Class<? extends Annotation> getScope() {
-        return ViewTransientScoped.class;
+        return ViewScoped.class;
     }
 
     @Override
     public <T> T get(Contextual<T> contextual, CreationalContext<T> cc) {
-        return getWrapped().get(contextual, cc);
+        return viewScopeContext.get(contextual, cc);
     }
 
     @Override
     public <T> T get(Contextual<T> contextual) {
-        return getWrapped().get(contextual);
+        return viewScopeContext.get(contextual);
     }
 
     @Override
     public boolean isActive() {
-        return getWrapped().isActive();
+        return viewScopeContext.isActive();
     }
 
 }
