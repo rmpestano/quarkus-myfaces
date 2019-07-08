@@ -105,11 +105,12 @@ import io.quarkus.deployment.builditem.substrate.RuntimeReinitializedClassBuildI
 import io.quarkus.deployment.builditem.substrate.SubstrateResourceBuildItem;
 import io.quarkus.deployment.builditem.substrate.SubstrateResourceBundleBuildItem;
 import io.quarkus.myfaces.runtime.MyFacesTemplate;
+import io.quarkus.myfaces.runtime.QuarkusFactoryFinder;
 import io.quarkus.myfaces.runtime.QuarkusServletContextListener;
-import io.quarkus.myfaces.runtime.renderkit.QuarkusHtmlRenderKit;
 import io.quarkus.myfaces.runtime.scopes.QuarkusFacesScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewTransientScopeContext;
+import io.quarkus.myfaces.runtime.spi.QuarkusFactoryFinderProvider;
 import io.quarkus.myfaces.runtime.spi.QuarkusInjectionProvider;
 import io.quarkus.myfaces.runtime.spi.QuarkusResourceResolver;
 import io.quarkus.runtime.LaunchMode;
@@ -135,7 +136,7 @@ class MyFacesProcessor {
             WebsocketViewBean.class,
             WebsocketApplicationBean.class,
             FlowBuilderFactoryBean.class,
-            QuarkusHtmlRenderKit.class,
+            QuarkusFactoryFinder.class,
             FlowScopeBeanHolder.class
     };
 
@@ -294,6 +295,9 @@ class MyFacesProcessor {
                     .forEach(annotation -> template.registerAnnotatedClass(annotation.name().toString(),
                             annotation.target().asClass().name().toString()));
         }
+
+        FactoryFinderProviderFactory ffp = new QuarkusFactoryFinderProvider();
+        FactoryFinderProviderFactory.setInstance(ffp);
     }
 
     /**

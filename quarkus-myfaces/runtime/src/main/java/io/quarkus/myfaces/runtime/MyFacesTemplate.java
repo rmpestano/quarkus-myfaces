@@ -2,6 +2,8 @@ package io.quarkus.myfaces.runtime;
 
 import java.lang.annotation.Annotation;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
 import javax.faces.component.UIComponent;
 
@@ -12,8 +14,11 @@ import io.quarkus.runtime.annotations.Template;
 @Template
 public class MyFacesTemplate {
 
+    private static final Logger LOG = Logger.getLogger(MyFacesTemplate.class.getName());
+
+    public static final Map<String, String> FACES_FACTORIES = new ConcurrentHashMap<>();
+
     public static final Map<Class<? extends Annotation>, Set<Class<?>>> ANNOTATED_CLASSES = new LinkedHashMap<>();
-    public static final Map<String, List<String>> FACES_FACTORIES = new HashMap<>();
 
     public static final Set<Class<? extends UIComponent>> COMPONENT_CLASSES = new HashSet<>();
 
@@ -35,8 +40,7 @@ public class MyFacesTemplate {
     }
 
     public void registerFactory(String factory, String factoryImpl) {
-        List<String> factories = FACES_FACTORIES.computeIfAbsent(factory, $ -> new ArrayList<>());
-        factories.add(factoryImpl);
+        FACES_FACTORIES.putIfAbsent(factory, factoryImpl);
     }
 
     public void registerComponents(List<String> componentClasses) {
