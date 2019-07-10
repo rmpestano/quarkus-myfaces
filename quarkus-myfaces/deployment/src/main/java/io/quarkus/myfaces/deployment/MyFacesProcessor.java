@@ -15,6 +15,7 @@
  */
 package io.quarkus.myfaces.deployment;
 
+import static io.quarkus.deployment.annotations.ExecutionTime.RUNTIME_INIT;
 import static io.quarkus.deployment.annotations.ExecutionTime.STATIC_INIT;
 
 import java.io.IOException;
@@ -25,6 +26,7 @@ import java.util.stream.Stream;
 
 import javax.el.BeanELResolver;
 import javax.faces.FactoryFinder;
+import javax.faces.QuarkusFactoryFinder;
 import javax.faces.application.ProjectStage;
 import javax.faces.application.StateManager;
 import javax.faces.component.FacesComponent;
@@ -100,12 +102,8 @@ import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.ExtensionSslNativeSupportBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
-import io.quarkus.deployment.builditem.substrate.ReflectiveClassBuildItem;
-import io.quarkus.deployment.builditem.substrate.RuntimeReinitializedClassBuildItem;
-import io.quarkus.deployment.builditem.substrate.SubstrateResourceBuildItem;
-import io.quarkus.deployment.builditem.substrate.SubstrateResourceBundleBuildItem;
+import io.quarkus.deployment.builditem.substrate.*;
 import io.quarkus.myfaces.runtime.MyFacesTemplate;
-import io.quarkus.myfaces.runtime.QuarkusFactoryFinder;
 import io.quarkus.myfaces.runtime.QuarkusServletContextListener;
 import io.quarkus.myfaces.runtime.scopes.QuarkusFacesScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewScopeContext;
@@ -296,8 +294,9 @@ class MyFacesProcessor {
                             annotation.target().asClass().name().toString()));
         }
 
-        FactoryFinderProviderFactory ffp = new QuarkusFactoryFinderProvider();
+        QuarkusFactoryFinderProvider ffp = new QuarkusFactoryFinderProvider();
         FactoryFinderProviderFactory.setInstance(ffp);
+        template.setFactoryFinderProviderInstance(ffp);
     }
 
     /**
@@ -380,7 +379,6 @@ class MyFacesProcessor {
         Stream.of(FACES_FACTORIES).forEach(factory -> {
             facesFactories.add(factory);
             for (ClassInfo factoryImpl : combinedIndex.getIndex().getAllKnownSubclasses(DotName.createSimple(factory))) {
-                template.registerFactory(factory, factoryImpl.toString());
                 facesFactories.add(factoryImpl.toString());
             }
         });
@@ -427,7 +425,7 @@ class MyFacesProcessor {
                         RestoreViewSupport.class, UIViewRoot.class, ExceptionQueuedEvent.class,
                         ExceptionQueuedEventContext.class,
                         PostAddToViewEvent.class, ComponentSystemEvent.class,
-                        SystemEvent.class,
+                        SystemEvent.class, QuarkusFactoryFinder.class,
                         PreRenderComponentEvent.class, FacesConfigurator.class, FaceletsInitilializer.class,
                         ImportHandlerResolver.class,
                         TagLibraryConfig.class, String.class, FacesContextImplBase.class,
@@ -449,13 +447,23 @@ class MyFacesProcessor {
     }
 
     @BuildStep
-    @Record(STATIC_INIT)
-    void runtimeReinit(BuildProducer<RuntimeReinitializedClassBuildItem> runtimeReinitProducer) {
+    @Record(RUNTIME_INIT)
+    void runtimeReinit(BuildProducer<RuntimeReinitializedClassBuildItem> runtimeReinitProducer,
+            BuildProducer<RuntimeInitializedClassBuildItem> runtimeInitialized) {
+        runtimeReinitProducer
+                .produce(new RuntimeReinitializedClassBuildItem("javax.faces.FactoryFinder"));
+        runtimeReinitProducer
+                .produce(new RuntimeReinitializedClassBuildItem("javax.faces._FactoryFinderProviderFactory"));
         /*
          * runtimeReinitProducer
-         * .produce(new RuntimeReinitializedClassBuildItem(Substitute_FactoryFinderProviderFactory.class.getName()));
-         * runtimeReinitProducer.produce(new RuntimeReinitializedClassBuildItem(Substitute_FactoryFinder.class.getName()));
+         * .produce(new RuntimeReinitializedClassBuildItem(QuarkusFactoryFinder.class.getName()));
          */
+
+        /*
+         * runtimeInitialized
+         * .produce(new RuntimeInitializedClassBuildItem(QuarkusFactoryFinderProvider.class.getName()));
+         */
+
     }
 
     @BuildStep

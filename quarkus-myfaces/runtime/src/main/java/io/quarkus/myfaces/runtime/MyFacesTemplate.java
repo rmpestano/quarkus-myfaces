@@ -2,27 +2,24 @@ package io.quarkus.myfaces.runtime;
 
 import java.lang.annotation.Annotation;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
 
 import javax.faces.component.UIComponent;
 
 import org.apache.myfaces.config.element.ClientBehaviorRenderer;
+import org.apache.myfaces.spi.FactoryFinderProviderFactory;
 
 import io.quarkus.runtime.annotations.Template;
 
 @Template
 public class MyFacesTemplate {
 
-    private static final Logger LOG = Logger.getLogger(MyFacesTemplate.class.getName());
-
-    public static final Map<String, String> FACES_FACTORIES = new ConcurrentHashMap<>();
-
     public static final Map<Class<? extends Annotation>, Set<Class<?>>> ANNOTATED_CLASSES = new LinkedHashMap<>();
 
     public static final Set<Class<? extends UIComponent>> COMPONENT_CLASSES = new HashSet<>();
 
     public static final Set<Class<? extends ClientBehaviorRenderer>> CLIENT_BEHAVIOUR_CLASSES = new HashSet<>();
+
+    public static FactoryFinderProviderFactory FACTORY_FINDER_PROVIDER_INSTANCE;
 
     @SuppressWarnings("unchecked") //cast to (Class<? extends Annotation>)
     public void registerAnnotatedClass(String annotationName, String clazzName) {
@@ -37,10 +34,6 @@ public class MyFacesTemplate {
         } catch (ClassNotFoundException e) {
             throw new IllegalStateException(e);
         }
-    }
-
-    public void registerFactory(String factory, String factoryImpl) {
-        FACES_FACTORIES.putIfAbsent(factory, factoryImpl);
     }
 
     public void registerComponents(List<String> componentClasses) {
@@ -65,5 +58,9 @@ public class MyFacesTemplate {
         } catch (ClassNotFoundException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    public void setFactoryFinderProviderInstance(FactoryFinderProviderFactory factoryFinderProviderInstance) {
+        FACTORY_FINDER_PROVIDER_INSTANCE = factoryFinderProviderInstance;
     }
 }

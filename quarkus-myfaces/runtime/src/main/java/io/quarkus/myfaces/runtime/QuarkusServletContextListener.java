@@ -15,6 +15,8 @@ limitations under the License.
  */
 package io.quarkus.myfaces.runtime;
 
+import java.util.logging.Logger;
+
 import javax.enterprise.inject.spi.CDI;
 import javax.faces.annotation.FacesConfig;
 import javax.servlet.ServletContextEvent;
@@ -22,14 +24,22 @@ import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
 
 import org.apache.myfaces.cdi.config.FacesConfigBeanHolder;
+import org.apache.myfaces.spi.FactoryFinderProviderFactory;
+
+import io.quarkus.myfaces.runtime.spi.QuarkusFactoryFinderProvider;
 
 @WebListener
 public class QuarkusServletContextListener implements ServletContextListener {
 
+    private static final Logger LOG = Logger.getLogger(QuarkusServletContextListener.class.getName());
+
     @Override
     public void contextInitialized(ServletContextEvent sce) {
+        LOG.info("starting quarkus context...");
         FacesConfigBeanHolder facesConfigBeanHolder = CDI.current().select(FacesConfigBeanHolder.class).get();
         facesConfigBeanHolder.setFacesConfigVersion(FacesConfig.Version.JSF_2_3);
+        FactoryFinderProviderFactory ffp = new QuarkusFactoryFinderProvider();
+        FactoryFinderProviderFactory.setInstance(ffp);
     }
 
     @Override
