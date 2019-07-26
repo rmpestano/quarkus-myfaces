@@ -1,4 +1,4 @@
-package io.quarkus.myfaces.runtime.graal;
+/*package io.quarkus.myfaces.runtime.graal;
 
 import java.util.logging.Logger;
 
@@ -38,3 +38,4 @@ public final class Subs_FactoryFinderProviderFactory {
     }
 
 }
+*/

@@ -24,9 +24,6 @@ import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
 
 import org.apache.myfaces.cdi.config.FacesConfigBeanHolder;
-import org.apache.myfaces.spi.FactoryFinderProviderFactory;
-
-import io.quarkus.myfaces.runtime.spi.QuarkusFactoryFinderProvider;
 
 @WebListener
 public class QuarkusServletContextListener implements ServletContextListener {
@@ -38,8 +35,6 @@ public class QuarkusServletContextListener implements ServletContextListener {
         LOG.info("starting quarkus context...");
         FacesConfigBeanHolder facesConfigBeanHolder = CDI.current().select(FacesConfigBeanHolder.class).get();
         facesConfigBeanHolder.setFacesConfigVersion(FacesConfig.Version.JSF_2_3);
-        FactoryFinderProviderFactory ffp = new QuarkusFactoryFinderProvider();
-        FactoryFinderProviderFactory.setInstance(ffp);
     }
 
     @Override

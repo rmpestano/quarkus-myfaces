@@ -20,14 +20,14 @@ import javax.faces.view.ViewDeclarationLanguageFactory;
 import javax.faces.view.facelets.FaceletCacheFactory;
 import javax.faces.view.facelets.TagHandlerDelegateFactory;
 
-import org.apache.myfaces.spi.FactoryFinderProvider;
+import io.quarkus.myfaces.runtime.MyFacesTemplate;
 
 /**
  * A copy of MyFaces FactoryFinder without the multiple classloader because of issue:
  * https://github.com/oracle/graal/issues/1457
  *
  */
-public class QuarkusFactoryFinder implements FactoryFinderProvider {
+public final class QuarkusFactoryFinder {
 
     private static final Logger LOGGER = Logger.getLogger(QuarkusFactoryFinder.class.getName());
 
@@ -51,7 +51,7 @@ public class QuarkusFactoryFinder implements FactoryFinderProvider {
      * used as a monitor for itself and _factories. Maps in this map are used as monitors for themselves and the
      * corresponding maps in _factories.
      */
-    private static Map<String, List<String>> registeredFactoryNames = new HashMap<>();
+    private static Map<String, List<String>> registeredFactoryNames = MyFacesTemplate.FACES_FACTORIES;
 
     /**
      * Maps from classLoader to another map, the container (i.e. Tomcat) will create a class loader for each web app
@@ -102,11 +102,10 @@ public class QuarkusFactoryFinder implements FactoryFinderProvider {
         ABSTRACT_FACTORY_CLASSES.put(FLOW_HANDLER_FACTORY, FlowHandlerFactory.class);
         ABSTRACT_FACTORY_CLASSES.put(CLIENT_WINDOW_FACTORY, ClientWindowFactory.class);
         ABSTRACT_FACTORY_CLASSES.put(SEARCH_EXPRESSION_CONTEXT_FACTORY, SearchExpressionContextFactory.class);
-
     }
 
-    @Override
-    public Object getFactory(String factoryName) throws FacesException {
+    public static Object getFactory(String factoryName) throws FacesException {
+        LOGGER.info("Quarkus getFactory: " + factoryName);
         // This code must be synchronized because this could cause a problem when
         // using update feature each time of myfaces (org.apache.myfaces.CONFIG_REFRESH_PERIOD)
         // In this moment, a concurrency problem could happen
@@ -180,7 +179,7 @@ public class QuarkusFactoryFinder implements FactoryFinderProvider {
         return factory;
     }
 
-    private Object newFactoryInstance(Class<?> interfaceClass, Iterator<String> classNamesIterator,
+    private static Object newFactoryInstance(Class<?> interfaceClass, Iterator<String> classNamesIterator,
             Object injectionProvider,
             List injectedBeanStorage) {
         try {
@@ -193,7 +192,7 @@ public class QuarkusFactoryFinder implements FactoryFinderProvider {
                 try {
                     implClass = classLoader.loadClass(implClassName);
                 } catch (ClassNotFoundException e) {
-                    implClass = getClass().getClassLoader().loadClass(implClassName);
+                    implClass = QuarkusFactoryFinder.class.getClass().getClassLoader().loadClass(implClassName);
                 }
 
                 // check, if class is of expected interface type
@@ -235,7 +234,7 @@ public class QuarkusFactoryFinder implements FactoryFinderProvider {
         }
     }
 
-    private void injectAndPostConstruct(Object injectionProvider, Object instance, List injectedBeanStorage) {
+    private static void injectAndPostConstruct(Object injectionProvider, Object instance, List injectedBeanStorage) {
         if (injectionProvider != null) {
             try {
                 Object creationMetaData = _FactoryFinderProviderFactory.INJECTION_PROVIDER_INJECT_METHOD.invoke(
@@ -251,7 +250,7 @@ public class QuarkusFactoryFinder implements FactoryFinderProvider {
         }
     }
 
-    private void preDestroy(Object injectionProvider, Object beanEntry) {
+    private static void preDestroy(Object injectionProvider, Object beanEntry) {
         if (injectionProvider != null) {
             try {
                 _FactoryFinderProviderFactory.INJECTION_PROVIDER_PRE_DESTROY_METHOD.invoke(
@@ -262,7 +261,7 @@ public class QuarkusFactoryFinder implements FactoryFinderProvider {
         }
     }
 
-    private Object getInstance(Object beanEntry) {
+    private static Object getInstance(Object beanEntry) {
         try {
             Method getterMethod = getMethod(beanEntry, "getInstance");
             return getterMethod.invoke(beanEntry);
@@ -271,7 +270,7 @@ public class QuarkusFactoryFinder implements FactoryFinderProvider {
         }
     }
 
-    private Object getCreationMetaData(Object beanEntry) {
+    private static Object getCreationMetaData(Object beanEntry) {
         try {
             Method getterMethod = getMethod(beanEntry, "getCreationMetaData");
             return getterMethod.invoke(beanEntry);
@@ -280,11 +279,11 @@ public class QuarkusFactoryFinder implements FactoryFinderProvider {
         }
     }
 
-    private Method getMethod(Object beanEntry, String methodName) throws NoSuchMethodException {
+    private static Method getMethod(Object beanEntry, String methodName) throws NoSuchMethodException {
         return beanEntry.getClass().getDeclaredMethod(methodName);
     }
 
-    private void addBeanEntry(Object instance, Object creationMetaData, List injectedBeanStorage) {
+    private static void addBeanEntry(Object instance, Object creationMetaData, List injectedBeanStorage) {
         try {
             Class<?> beanEntryClass = _FactoryFinderProviderFactory.classForName(BEAN_ENTRY_CLASS_NAME);
             Constructor beanEntryConstructor = beanEntryClass.getDeclaredConstructor(Object.class, Object.class);
@@ -296,7 +295,7 @@ public class QuarkusFactoryFinder implements FactoryFinderProvider {
         }
     }
 
-    private Object getInjectionProvider() {
+    private static Object getInjectionProvider() {
         try {
             // Remember the first call in a webapp over FactoryFinder.getFactory(...) comes in the
             // initialization block, so there is a startup FacesContext active and
@@ -317,8 +316,7 @@ public class QuarkusFactoryFinder implements FactoryFinderProvider {
         return null;
     }
 
-    @Override
-    public void releaseFactories() throws FacesException {
+    public static void releaseFactories() throws FacesException {
         // This code must be synchronized
         synchronized (registeredFactoryNames) {
             registeredFactoryNames.clear();
@@ -350,8 +348,8 @@ public class QuarkusFactoryFinder implements FactoryFinderProvider {
         }
     }
 
-    @Override
-    public void setFactory(String factoryName, String implName) {
+    public static void setFactory(String factoryName, String implName) {
+        LOGGER.info("Quarkus setFactory: " + factoryName + " = " + implName);
         List<String> factoryClassNames = null;
         synchronized (registeredFactoryNames) {
             if (factories != null && factories.containsKey(factoryName)) {

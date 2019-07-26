@@ -8,9 +8,9 @@ import javax.faces.component.UIComponent;
 import org.apache.myfaces.config.element.ClientBehaviorRenderer;
 import org.apache.myfaces.spi.FactoryFinderProviderFactory;
 
-import io.quarkus.runtime.annotations.Template;
+import io.quarkus.runtime.annotations.Recorder;
 
-@Template
+@Recorder
 public class MyFacesTemplate {
 
     public static final Map<Class<? extends Annotation>, Set<Class<?>>> ANNOTATED_CLASSES = new LinkedHashMap<>();
@@ -20,6 +20,8 @@ public class MyFacesTemplate {
     public static final Set<Class<? extends ClientBehaviorRenderer>> CLIENT_BEHAVIOUR_CLASSES = new HashSet<>();
 
     public static FactoryFinderProviderFactory FACTORY_FINDER_PROVIDER_INSTANCE;
+
+    public static final Map<String, List<String>> FACES_FACTORIES = new HashMap<>();
 
     @SuppressWarnings("unchecked") //cast to (Class<? extends Annotation>)
     public void registerAnnotatedClass(String annotationName, String clazzName) {
@@ -62,5 +64,10 @@ public class MyFacesTemplate {
 
     public void setFactoryFinderProviderInstance(FactoryFinderProviderFactory factoryFinderProviderInstance) {
         FACTORY_FINDER_PROVIDER_INSTANCE = factoryFinderProviderInstance;
+    }
+
+    public void registerFactory(String factory, String factoryImpl) {
+        List<String> factories = FACES_FACTORIES.computeIfAbsent(factory, $ -> new ArrayList<>());
+        factories.add(factoryImpl);
     }
 }

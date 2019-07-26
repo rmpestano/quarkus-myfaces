@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.el.BeanELResolver;
-import javax.faces.FactoryFinder;
 import javax.faces.QuarkusFactoryFinder;
 import javax.faces.application.ProjectStage;
 import javax.faces.application.StateManager;
@@ -108,7 +107,6 @@ import io.quarkus.myfaces.runtime.QuarkusServletContextListener;
 import io.quarkus.myfaces.runtime.scopes.QuarkusFacesScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewTransientScopeContext;
-import io.quarkus.myfaces.runtime.spi.QuarkusFactoryFinderProvider;
 import io.quarkus.myfaces.runtime.spi.QuarkusInjectionProvider;
 import io.quarkus.myfaces.runtime.spi.QuarkusResourceResolver;
 import io.quarkus.runtime.LaunchMode;
@@ -134,7 +132,6 @@ class MyFacesProcessor {
             WebsocketViewBean.class,
             WebsocketApplicationBean.class,
             FlowBuilderFactoryBean.class,
-            QuarkusFactoryFinder.class,
             FlowScopeBeanHolder.class
     };
 
@@ -150,21 +147,21 @@ class MyFacesProcessor {
     };
 
     private static final String[] FACES_FACTORIES = {
-            FactoryFinder.APPLICATION_FACTORY,
-            FactoryFinder.RENDER_KIT_FACTORY,
-            FactoryFinder.LIFECYCLE_FACTORY,
-            FactoryFinder.FACES_CONTEXT_FACTORY,
-            FactoryFinder.VIEW_DECLARATION_LANGUAGE_FACTORY,
-            FactoryFinder.VISIT_CONTEXT_FACTORY,
-            FactoryFinder.PARTIAL_VIEW_CONTEXT_FACTORY,
-            FactoryFinder.EXCEPTION_HANDLER_FACTORY,
-            FactoryFinder.FACELET_CACHE_FACTORY,
-            FactoryFinder.CLIENT_WINDOW_FACTORY,
-            FactoryFinder.SEARCH_EXPRESSION_CONTEXT_FACTORY,
-            FactoryFinder.TAG_HANDLER_DELEGATE_FACTORY,
-            FactoryFinder.FLASH_FACTORY,
-            FactoryFinder.EXTERNAL_CONTEXT_FACTORY,
-            FactoryFinder.FLOW_HANDLER_FACTORY,
+            QuarkusFactoryFinder.APPLICATION_FACTORY,
+            QuarkusFactoryFinder.RENDER_KIT_FACTORY,
+            QuarkusFactoryFinder.LIFECYCLE_FACTORY,
+            QuarkusFactoryFinder.FACES_CONTEXT_FACTORY,
+            QuarkusFactoryFinder.VIEW_DECLARATION_LANGUAGE_FACTORY,
+            QuarkusFactoryFinder.VISIT_CONTEXT_FACTORY,
+            QuarkusFactoryFinder.PARTIAL_VIEW_CONTEXT_FACTORY,
+            QuarkusFactoryFinder.EXCEPTION_HANDLER_FACTORY,
+            QuarkusFactoryFinder.FACELET_CACHE_FACTORY,
+            QuarkusFactoryFinder.CLIENT_WINDOW_FACTORY,
+            QuarkusFactoryFinder.SEARCH_EXPRESSION_CONTEXT_FACTORY,
+            QuarkusFactoryFinder.TAG_HANDLER_DELEGATE_FACTORY,
+            QuarkusFactoryFinder.FLASH_FACTORY,
+            QuarkusFactoryFinder.EXTERNAL_CONTEXT_FACTORY,
+            QuarkusFactoryFinder.FLOW_HANDLER_FACTORY,
             InjectionProviderFactory.class.getName()
     };
 
@@ -294,9 +291,11 @@ class MyFacesProcessor {
                             annotation.target().asClass().name().toString()));
         }
 
-        QuarkusFactoryFinderProvider ffp = new QuarkusFactoryFinderProvider();
-        FactoryFinderProviderFactory.setInstance(ffp);
-        template.setFactoryFinderProviderInstance(ffp);
+        /*
+         * QuarkusFactoryFinderProvider ffp = new QuarkusFactoryFinderProvider();
+         * FactoryFinderProviderFactory.setInstance(ffp);
+         * template.setFactoryFinderProviderInstance(ffp);
+         */
     }
 
     /**
@@ -380,6 +379,7 @@ class MyFacesProcessor {
             facesFactories.add(factory);
             for (ClassInfo factoryImpl : combinedIndex.getIndex().getAllKnownSubclasses(DotName.createSimple(factory))) {
                 facesFactories.add(factoryImpl.toString());
+                //template.registerFactory(factory, factoryImpl.toString());
             }
         });
 
@@ -438,7 +438,7 @@ class MyFacesProcessor {
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, false, ClassUtils.class,
                 FactoryFinderProviderFactory.class, NumberConverter.class, ComponentSupport.class,
                 MethodRule.class,
-                FactoryFinder.class, ELResolverBuilderForFaces.class, AbstractFacesInitializer.class,
+                QuarkusFactoryFinder.class, ELResolverBuilderForFaces.class, AbstractFacesInitializer.class,
                 ExternalContextUtils.class,
                 BeanELResolver.class, PreDestroyApplicationEvent.class, BeanEntry.class, MetaRulesetImpl.class));
 
@@ -450,10 +450,12 @@ class MyFacesProcessor {
     @Record(RUNTIME_INIT)
     void runtimeReinit(BuildProducer<RuntimeReinitializedClassBuildItem> runtimeReinitProducer,
             BuildProducer<RuntimeInitializedClassBuildItem> runtimeInitialized) {
-        runtimeReinitProducer
-                .produce(new RuntimeReinitializedClassBuildItem("javax.faces.FactoryFinder"));
-        runtimeReinitProducer
-                .produce(new RuntimeReinitializedClassBuildItem("javax.faces._FactoryFinderProviderFactory"));
+        /*
+         * runtimeReinitProducer
+         * .produce(new RuntimeReinitializedClassBuildItem("javax.faces.FactoryFinder"));
+         * runtimeReinitProducer
+         * .produce(new RuntimeReinitializedClassBuildItem("javax.faces._FactoryFinderProviderFactory"));
+         */
         /*
          * runtimeReinitProducer
          * .produce(new RuntimeReinitializedClassBuildItem(QuarkusFactoryFinder.class.getName()));
