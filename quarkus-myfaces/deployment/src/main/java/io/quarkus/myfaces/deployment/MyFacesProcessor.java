@@ -27,6 +27,7 @@ import javax.faces.FactoryFinder;
 import javax.faces.application.ProjectStage;
 import javax.faces.application.StateManager;
 import javax.faces.component.FacesComponent;
+import javax.faces.component.UIViewParameter;
 import javax.faces.component.UIViewRoot;
 import javax.faces.component.behavior.FacesBehavior;
 import javax.faces.convert.FacesConverter;
@@ -55,6 +56,7 @@ import org.apache.myfaces.config.MyfacesConfig;
 import org.apache.myfaces.config.annotation.CdiAnnotationProviderExtension;
 import org.apache.myfaces.config.annotation.DefaultLifecycleProviderFactory;
 import org.apache.myfaces.config.element.NamedEvent;
+import org.apache.myfaces.context.FacesContextFactoryImpl;
 import org.apache.myfaces.context.servlet.FacesContextImplBase;
 import org.apache.myfaces.el.ELResolverBuilderForFaces;
 import org.apache.myfaces.el.resolver.CompositeELResolver;
@@ -103,6 +105,7 @@ import io.quarkus.deployment.builditem.substrate.SubstrateResourceBuildItem;
 import io.quarkus.deployment.builditem.substrate.SubstrateResourceBundleBuildItem;
 import io.quarkus.myfaces.runtime.MyFacesRecorder;
 import io.quarkus.myfaces.runtime.QuarkusFacesInitilializer;
+import io.quarkus.myfaces.runtime.exception.QuarkusExceptionHandlerFactory;
 import io.quarkus.myfaces.runtime.scopes.QuarkusFacesScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewTransientScopeContext;
@@ -166,6 +169,7 @@ class MyFacesProcessor {
             FactoryFinder.FLASH_FACTORY,
             FactoryFinder.EXTERNAL_CONTEXT_FACTORY,
             FactoryFinder.FLOW_HANDLER_FACTORY,
+            QuarkusExceptionHandlerFactory.class.getName(),
             InjectionProviderFactory.class.getName()
     };
 
@@ -373,7 +377,6 @@ class MyFacesProcessor {
             facesFactories.add(factory);
             for (ClassInfo factoryImpl : combinedIndex.getIndex().getAllKnownSubclasses(DotName.createSimple(factory))) {
                 facesFactories.add(factoryImpl.toString());
-                //template.registerFactory(factory, factoryImpl.toString());
             }
         });
 
@@ -432,8 +435,13 @@ class MyFacesProcessor {
         reflectiveClass.produce(new ReflectiveClassBuildItem(true, false, ClassUtils.class,
                 FactoryFinderProviderFactory.class, NumberConverter.class, ComponentSupport.class,
                 MethodRule.class, ELResolverBuilderForFaces.class, AbstractFacesInitializer.class,
-                ExternalContextUtils.class,
+                ExternalContextUtils.class, UIViewParameter.class,
                 BeanELResolver.class, PreDestroyApplicationEvent.class, BeanEntry.class, MetaRulesetImpl.class));
+
+        //classes with field reflection support
+        reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, FacesContextFactoryImpl.class));
+
+        reflectiveClass.produce(new ReflectiveClassBuildItem(false, true, "javax.faces.context._MyFacesExternalContextHelper"));
 
     }
 

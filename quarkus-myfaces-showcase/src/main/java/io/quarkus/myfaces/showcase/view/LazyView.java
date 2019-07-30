@@ -19,7 +19,7 @@ public class LazyView implements Serializable {
     private Car selectedCar;
 
     @Inject
-    private CarService service;
+    CarService service;
 
     @PostConstruct
     public void init() {
