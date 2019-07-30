@@ -443,6 +443,10 @@ class MyFacesProcessor {
 
         reflectiveClass.produce(new ReflectiveClassBuildItem(false, true, "javax.faces.context._MyFacesExternalContextHelper"));
 
+        reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, "io.quarkus.myfaces.showcase.view.LazyView",
+                "io.quarkus.myfaces.showcase.view.LazyCarDataModel", "org.primefaces.component.datatable.DataTable",
+                "io.quarkus.myfaces.showcase.view.Car", "org.primefaces.model.LazyDataModelIterator"));
+
     }
 
     @BuildStep

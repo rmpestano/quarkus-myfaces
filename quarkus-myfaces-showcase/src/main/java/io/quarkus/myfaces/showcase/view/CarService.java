@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.Logger;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Named;
 
@@ -11,9 +12,13 @@ import javax.inject.Named;
 @ApplicationScoped
 public class CarService {
 
+    private static final Logger LOG = Logger.getLogger(CarService.class.getName());
+
+
     private final static String[] colors;
 
     private final static String[] brands;
+
 
     static {
         colors = new String[10];
@@ -42,11 +47,13 @@ public class CarService {
     }
 
     public List<Car> createCars(int size) {
+        LOG.info("createCars");
+
         List<Car> list = new ArrayList<Car>();
         for (int i = 0; i < size; i++) {
             list.add(new Car(getRandomId(), getRandomBrand(), getRandomYear(), getRandomColor(), getRandomPrice(), getRandomSoldState()));
         }
-
+        LOG.info("created "+list.size() + " cars");
         return list;
     }
 

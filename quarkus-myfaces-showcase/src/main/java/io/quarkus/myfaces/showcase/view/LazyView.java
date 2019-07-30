@@ -1,6 +1,7 @@
 package io.quarkus.myfaces.showcase.view;
 
 import java.io.Serializable;
+import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
 import javax.faces.application.FacesMessage;
 import javax.faces.context.FacesContext;
@@ -14,19 +15,23 @@ import org.primefaces.model.LazyDataModel;
 @ViewScoped
 public class LazyView implements Serializable {
 
-    private LazyDataModel<Car> lazyModel;
+    private static final Logger LOG = Logger.getLogger(LazyView.class.getName());
 
     private Car selectedCar;
+    private LazyDataModel<Car> lazyModel;
 
     @Inject
     CarService service;
 
     @PostConstruct
     public void init() {
+        LOG.info("PostConstruct");
         lazyModel = new LazyCarDataModel(service.createCars(200));
     }
 
     public LazyDataModel<Car> getLazyModel() {
+        LOG.info("getLazyModel:"+lazyModel);
+        LOG.info("lazyModel rowCount:"+lazyModel.getRowCount());
         return lazyModel;
     }
 

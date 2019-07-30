@@ -5,6 +5,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
+
 import org.primefaces.model.LazyDataModel;
 import org.primefaces.model.SortOrder;
 
@@ -13,14 +15,19 @@ import org.primefaces.model.SortOrder;
  */
 public class LazyCarDataModel extends LazyDataModel<Car> {
 
+    private static final Logger LOG = Logger.getLogger(LazyCarDataModel.class.getName());
+
     private List<Car> datasource;
 
     public LazyCarDataModel(List<Car> datasource) {
         this.datasource = datasource;
+        LOG.info("LazyCarDataModel constructor: "+datasource.size());
+
     }
 
     @Override
     public Car getRowData(String rowKey) {
+        LOG.info("getRowData: "+datasource);
         for (Car car : datasource) {
             if (car.getId().equals(rowKey)) {
                 return car;
@@ -37,6 +44,7 @@ public class LazyCarDataModel extends LazyDataModel<Car> {
 
     @Override
     public List<Car> load(int first, int pageSize, String sortField, SortOrder sortOrder, Map<String, Object> filters) {
+        LOG.info("load: "+datasource);
         List<Car> data = new ArrayList<Car>();
 
         //filter
@@ -90,5 +98,11 @@ public class LazyCarDataModel extends LazyDataModel<Car> {
         else {
             return data;
         }
+    }
+
+    @Override
+    public int getRowCount() {
+        LOG.info("getRowCount: "+datasource.size());
+        return super.getRowCount();
     }
 }
