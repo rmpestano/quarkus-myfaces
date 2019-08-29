@@ -26,6 +26,7 @@ import javax.el.BeanELResolver;
 import javax.faces.FactoryFinder;
 import javax.faces.application.ProjectStage;
 import javax.faces.application.StateManager;
+import javax.faces.application.ViewHandler;
 import javax.faces.component.FacesComponent;
 import javax.faces.component.UIViewParameter;
 import javax.faces.component.UIViewRoot;
@@ -33,6 +34,9 @@ import javax.faces.component.behavior.FacesBehavior;
 import javax.faces.convert.FacesConverter;
 import javax.faces.convert.NumberConverter;
 import javax.faces.event.*;
+import javax.faces.flow.FlowScoped;
+import javax.faces.flow.builder.FlowDefinition;
+import javax.faces.model.FacesDataModel;
 import javax.faces.push.PushContext;
 import javax.faces.render.FacesBehaviorRenderer;
 import javax.faces.render.FacesRenderer;
@@ -47,14 +51,13 @@ import org.apache.myfaces.cdi.FacesScoped;
 import org.apache.myfaces.cdi.JsfApplicationArtifactHolder;
 import org.apache.myfaces.cdi.JsfArtifactProducer;
 import org.apache.myfaces.cdi.config.FacesConfigBeanHolder;
-import org.apache.myfaces.cdi.model.FacesDataModelClassBeanHolder;
+import org.apache.myfaces.cdi.model.FacesDataModelManager;
 import org.apache.myfaces.cdi.util.BeanEntry;
 import org.apache.myfaces.cdi.view.ViewScopeBeanHolder;
 import org.apache.myfaces.cdi.view.ViewTransientScoped;
 import org.apache.myfaces.config.FacesConfigurator;
 import org.apache.myfaces.config.MyfacesConfig;
 import org.apache.myfaces.config.annotation.CdiAnnotationProviderExtension;
-import org.apache.myfaces.config.annotation.DefaultLifecycleProviderFactory;
 import org.apache.myfaces.config.element.NamedEvent;
 import org.apache.myfaces.context.FacesContextFactoryImpl;
 import org.apache.myfaces.context.servlet.FacesContextImplBase;
@@ -80,8 +83,11 @@ import org.apache.myfaces.view.facelets.tag.jsf.ComponentSupport;
 import org.apache.myfaces.webapp.AbstractFacesInitializer;
 import org.apache.myfaces.webapp.FaceletsInitilializer;
 import org.apache.myfaces.webapp.MyFacesContainerInitializer;
+import org.apache.myfaces.webapp.StartupServletContextListener;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
+import org.jboss.jandex.AnnotationInstance;
+import org.jboss.jandex.AnnotationValue;
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 
@@ -90,9 +96,7 @@ import com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl;
 import com.sun.org.apache.xpath.internal.functions.FuncLocalPart;
 import com.sun.org.apache.xpath.internal.functions.FuncNot;
 
-import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
-import io.quarkus.arc.deployment.BeanDefiningAnnotationBuildItem;
-import io.quarkus.arc.deployment.ContextRegistrarBuildItem;
+import io.quarkus.arc.deployment.*;
 import io.quarkus.arc.processor.ContextRegistrar;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
@@ -107,11 +111,11 @@ import io.quarkus.myfaces.runtime.MyFacesRecorder;
 import io.quarkus.myfaces.runtime.QuarkusFacesInitilializer;
 import io.quarkus.myfaces.runtime.exception.QuarkusExceptionHandlerFactory;
 import io.quarkus.myfaces.runtime.scopes.QuarkusFacesScopeContext;
+import io.quarkus.myfaces.runtime.scopes.QuarkusFlowScopedContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewScopeContext;
 import io.quarkus.myfaces.runtime.scopes.QuarkusViewTransientScopeContext;
 import io.quarkus.myfaces.runtime.spi.QuarkusFactoryFinderProvider;
 import io.quarkus.myfaces.runtime.spi.QuarkusInjectionProvider;
-import io.quarkus.myfaces.runtime.spi.QuarkusResourceResolver;
 import io.quarkus.runtime.LaunchMode;
 import io.quarkus.runtime.configuration.ProfileManager;
 import io.quarkus.undertow.deployment.ListenerBuildItem;
@@ -122,11 +126,12 @@ class MyFacesProcessor {
 
     private static final Class[] BEAN_CLASSES = {
             JsfApplicationArtifactHolder.class,
+
             JsfArtifactProducer.class,
 
             FacesConfigBeanHolder.class,
 
-            FacesDataModelClassBeanHolder.class,
+            FacesDataModelManager.class,
 
             ViewScopeBeanHolder.class,
 
@@ -150,7 +155,8 @@ class MyFacesProcessor {
             FacesRenderer.class.getName(),
             NamedEvent.class.getName(),
             FacesBehaviorRenderer.class.getName(),
-            FaceletsResourceResolver.class.getName()
+            FaceletsResourceResolver.class.getName(),
+            FlowDefinition.class.getName()
     };
 
     private static final String[] FACES_FACTORIES = {
@@ -186,15 +192,14 @@ class MyFacesProcessor {
         servlet.produce(ServletBuildItem.builder("Faces Servlet", FacesServlet.class.getName())
                 .addMapping("*.xhtml")
                 .build());
+
+        // sometimes Quarkus doesn't scan web-fragments?! lets add it manually
+        listener.produce(new ListenerBuildItem(StartupServletContextListener.class.getName()));
     }
 
     @BuildStep
-    void buildCdiBeans(BuildProducer<FeatureBuildItem> feature,
-            BuildProducer<ServletBuildItem> servlet,
-            BuildProducer<ListenerBuildItem> listener,
-            BuildProducer<AdditionalBeanBuildItem> additionalBean,
-            BuildProducer<BeanDefiningAnnotationBuildItem> beanDefiningAnnotation,
-            BuildProducer<ContextRegistrarBuildItem> contextRegistrar) throws IOException {
+    void buildCdiBeans(BuildProducer<AdditionalBeanBuildItem> additionalBean,
+            BuildProducer<BeanDefiningAnnotationBuildItem> beanDefiningAnnotation) throws IOException {
 
         for (Class<?> clazz : BEAN_CLASSES) {
             additionalBean.produce(AdditionalBeanBuildItem.unremovableOf(clazz));
@@ -227,6 +232,8 @@ class MyFacesProcessor {
                 registrationContext.configure(FacesScoped.class).normal().contextClass(QuarkusFacesScopeContext.class).done();
                 registrationContext.configure(ViewTransientScoped.class).normal()
                         .contextClass(QuarkusViewTransientScopeContext.class).done();
+                registrationContext.configure(FlowScoped.class).normal()
+                        .contextClass(QuarkusFlowScopedContext.class).done();
             }
         }));
     }
@@ -240,14 +247,25 @@ class MyFacesProcessor {
                 MyfacesConfig.FACES_INITIALIZER, QuarkusFacesInitilializer.class.getName()));
         initParam.produce(new ServletInitParamBuildItem(
                 MyfacesConfig.SUPPORT_JSP, "false"));
-
-        initParam.produce(new ServletInitParamBuildItem(
-                MyfacesConfig.FACELETS_RESOURCE_RESOLVER, QuarkusResourceResolver.class.getName()));
     }
 
     @BuildStep
     void buildRecommendedInitParams(BuildProducer<ServletInitParamBuildItem> initParam) throws IOException {
 
+        // user config
+        Config config = ConfigProvider.getConfig();
+
+        Optional<String> projectStage = resolveProjectStage(config);
+        initParam.produce(new ServletInitParamBuildItem(ProjectStage.PROJECT_STAGE_PARAM_NAME, projectStage.get()));
+
+        Optional<String> enableWebsocketsEndpoint = config.getOptionalValue(PushContext.ENABLE_WEBSOCKET_ENDPOINT_PARAM_NAME,
+                String.class);
+        if (enableWebsocketsEndpoint.isPresent()) {
+            initParam.produce(new ServletInitParamBuildItem(PushContext.ENABLE_WEBSOCKET_ENDPOINT_PARAM_NAME,
+                    enableWebsocketsEndpoint.get()));
+        }
+
+        // common
         initParam.produce(new ServletInitParamBuildItem(
                 MyfacesConfig.LOG_WEB_CONTEXT_PARAMS, "false"));
         initParam.produce(new ServletInitParamBuildItem(
@@ -265,38 +283,27 @@ class MyFacesProcessor {
         initParam.produce(new ServletInitParamBuildItem(
                 MyfacesConfig.COMPRESS_STATE_IN_SESSION, "false"));
         initParam.produce(new ServletInitParamBuildItem(
-                MyfacesConfig.RESOURCE_MAX_TIME_EXPIRES, "86400000")); // 1 day
-        initParam.produce(new ServletInitParamBuildItem(
-                MyfacesConfig.RESOURCE_CACHE_LAST_MODIFIED, "true"));
-
-        initParam.produce(new ServletInitParamBuildItem(
                 MyfacesConfig.NUMBER_OF_VIEWS_IN_SESSION, "15"));
         initParam.produce(new ServletInitParamBuildItem(
                 MyfacesConfig.NUMBER_OF_SEQUENTIAL_VIEWS_IN_SESSION, "3"));
+
+        // MyFaces uses default 0, which means always recompile
+        if (ProjectStage.valueOf(projectStage.get()) == ProjectStage.Development) {
+            initParam.produce(new ServletInitParamBuildItem(
+                    ViewHandler.FACELETS_REFRESH_PERIOD_PARAM_NAME, "1"));
+        }
 
         // primefaces perf
         initParam.produce(new ServletInitParamBuildItem(
                 "primefaces.SUBMIT", "partial"));
         initParam.produce(new ServletInitParamBuildItem(
                 "primefaces.MOVE_SCRIPTS_TO_BOTTOM", "true"));
-
-        // user config
-        Config config = ConfigProvider.getConfig();
-
-        Optional<String> projectStage = resolveProjectStage(config);
-        initParam.produce(new ServletInitParamBuildItem(ProjectStage.PROJECT_STAGE_PARAM_NAME, projectStage.get()));
-
-        Optional<String> enableWebsocketsEndpoint = config.getOptionalValue(PushContext.ENABLE_WEBSOCKET_ENDPOINT_PARAM_NAME,
-                String.class);
-        if (enableWebsocketsEndpoint.isPresent()) {
-            initParam.produce(new ServletInitParamBuildItem(PushContext.ENABLE_WEBSOCKET_ENDPOINT_PARAM_NAME,
-                    enableWebsocketsEndpoint.get()));
-        }
     }
 
     @BuildStep
     @Record(STATIC_INIT)
-    void buildAnnotationProviderIntegration(MyFacesRecorder recorder, CombinedIndexBuildItem combinedIndex) throws IOException {
+    void buildAnnotationProviderIntegration(MyFacesRecorder recorder, CombinedIndexBuildItem combinedIndex)
+            throws IOException {
 
         for (String clazz : BEAN_DEFINING_ANNOTATION_CLASSES) {
             combinedIndex.getIndex()
@@ -418,7 +425,7 @@ class MyFacesProcessor {
         reflectiveClass.produce(
                 new ReflectiveClassBuildItem(false, false, ExceptionQueuedEvent.class, DefaultWebConfigProviderFactory.class,
                         ErrorPageWriter.class, DocumentBuilderFactoryImpl.class, FuncLocalPart.class, FuncNot.class,
-                        MyFacesContainerInitializer.class, DefaultLifecycleProviderFactory.class,
+                        MyFacesContainerInitializer.class,
                         RestoreViewSupport.class, UIViewRoot.class, ExceptionQueuedEvent.class,
                         ExceptionQueuedEventContext.class,
                         PostAddToViewEvent.class, ComponentSystemEvent.class,
@@ -428,7 +435,7 @@ class MyFacesProcessor {
                         TagLibraryConfig.class, String.class, FacesContextImplBase.class,
                         CompositeELResolver.class, javax.el.CompositeELResolver.class, ValueExpressionImpl.class,
                         com.sun.el.ValueExpressionImpl.class, ViewScopeProxyMap.class,
-                        QuarkusResourceResolver.class, SAXCompiler.class, StateUtils.class,
+                        SAXCompiler.class, StateUtils.class,
                         ApplicationImpl.class));
 
         //classes build items with method reflection support
@@ -507,5 +514,45 @@ class MyFacesProcessor {
             }
         }
         return projectStage;
+    }
+
+    @BuildStep
+    void buildMangedPropertyProducers(BeanRegistrationPhaseBuildItem beanRegistrationPhase,
+            BuildProducer<BeanRegistrationPhaseBuildItem.BeanConfiguratorBuildItem> beanConfigurators) throws IOException {
+
+        ManagedPropertyBuildStep.build(beanRegistrationPhase, beanConfigurators);
+    }
+
+    @BuildStep
+    @Record(STATIC_INIT)
+    void buildFacesDataModels(MyFacesRecorder recorder,
+            BuildProducer<BeanRegistrarBuildItem> beanConfigurators,
+            CombinedIndexBuildItem combinedIndex) throws IOException {
+
+        for (AnnotationInstance ai : combinedIndex.getIndex()
+                .getAnnotations(DotName.createSimple(FacesDataModel.class.getName()))) {
+            AnnotationValue forClass = ai.value("forClass");
+            if (forClass != null) {
+                recorder.registerFacesDataModel(ai.target().asClass().name().toString(), forClass.asClass().name().toString());
+            }
+        }
+    }
+
+    @BuildStep
+    @Record(STATIC_INIT)
+    void buildFlowScopedMapping(MyFacesRecorder recorder,
+            CombinedIndexBuildItem combinedIndex) throws IOException {
+
+        for (AnnotationInstance ai : combinedIndex.getIndex()
+                .getAnnotations(DotName.createSimple(FlowScoped.class.getName()))) {
+            AnnotationValue flowId = ai.value("value");
+            if (flowId != null && flowId.asString() != null) {
+
+                AnnotationValue definingDocumentId = ai.value("definingDocumentId");
+                recorder.registerFlowReference(ai.target().asClass().name().toString(),
+                        definingDocumentId == null ? "" : definingDocumentId.asString(),
+                        flowId.asString());
+            }
+        }
     }
 }

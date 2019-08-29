@@ -13,23 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.quarkus.myfaces.runtime.spi;
+package io.quarkus.myfaces.runtime.producer;
 
-import java.net.URL;
+import java.util.Map;
 
-import org.apache.myfaces.view.facelets.impl.DefaultResourceResolver;
+import javax.enterprise.context.spi.CreationalContext;
 
-// prevents a NPE, see #3
-public class QuarkusResourceResolver extends DefaultResourceResolver {
+import org.apache.myfaces.util.lang.ClassUtils;
+
+import io.quarkus.arc.BeanCreator;
+
+public class SimpleBeanCreator implements BeanCreator<Object> {
+
+    public static final String CLASSNAME = "clazz";
+
     @Override
-    public URL resolveUrl(String resource) {
-        URL resourceUrl = super.resolveUrl(resource);
-        if (resourceUrl == null) {
-            if (resource.equals("/")) {
-                resource = "/index.xhtml";
-            }
-            resourceUrl = super.resolveUrl(resource);
-        }
-        return resourceUrl;
+    public Object create(CreationalContext<Object> cc, Map<String, Object> map) {
+        return ClassUtils.newInstance((String) map.get(CLASSNAME));
     }
+
 }

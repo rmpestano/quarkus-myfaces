@@ -15,11 +15,15 @@
  */
 package io.quarkus.myfaces.runtime;
 
+import java.util.Map;
+
 import javax.enterprise.inject.spi.CDI;
 import javax.faces.annotation.FacesConfig;
+import javax.faces.model.DataModel;
 import javax.servlet.ServletContext;
 
 import org.apache.myfaces.cdi.config.FacesConfigBeanHolder;
+import org.apache.myfaces.cdi.model.FacesDataModelManager;
 import org.apache.myfaces.spi.FactoryFinderProviderFactory;
 import org.apache.myfaces.webapp.FaceletsInitilializer;
 
@@ -37,6 +41,13 @@ public class QuarkusFacesInitilializer extends FaceletsInitilializer {
         facesConfigBeanHolder.setFacesConfigVersion(FacesConfig.Version.JSF_2_3);
 
         FactoryFinderProviderFactory.setInstance(new QuarkusFactoryFinderProviderFactory());
+
+        // see FacesDataModelExtension
+        FacesDataModelManager facesDataModelManager = CDI.current().select(FacesDataModelManager.class).get();
+        for (Map.Entry<Class<? extends DataModel>, Class<?>> typeInfo : MyFacesRecorder.FACES_DATA_MODELS.entrySet()) {
+            facesDataModelManager.addFacesDataModel(typeInfo.getValue(), typeInfo.getKey());
+        }
+        facesDataModelManager.init();
 
         super.initFaces(servletContext);
     }
