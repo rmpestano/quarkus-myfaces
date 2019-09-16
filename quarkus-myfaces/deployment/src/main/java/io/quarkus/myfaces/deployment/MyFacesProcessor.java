@@ -15,6 +15,7 @@
  */
 package io.quarkus.myfaces.deployment;
 
+import static io.quarkus.deployment.annotations.ExecutionTime.RUNTIME_INIT;
 import static io.quarkus.deployment.annotations.ExecutionTime.STATIC_INIT;
 
 import java.io.IOException;
@@ -104,9 +105,7 @@ import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.ExtensionSslNativeSupportBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
-import io.quarkus.deployment.builditem.substrate.ReflectiveClassBuildItem;
-import io.quarkus.deployment.builditem.substrate.SubstrateResourceBuildItem;
-import io.quarkus.deployment.builditem.substrate.SubstrateResourceBundleBuildItem;
+import io.quarkus.deployment.builditem.substrate.*;
 import io.quarkus.myfaces.runtime.MyFacesRecorder;
 import io.quarkus.myfaces.runtime.QuarkusFacesInitilializer;
 import io.quarkus.myfaces.runtime.exception.QuarkusExceptionHandlerFactory;
@@ -426,7 +425,7 @@ class MyFacesProcessor {
                 new ReflectiveClassBuildItem(false, false, ExceptionQueuedEvent.class, DefaultWebConfigProviderFactory.class,
                         ErrorPageWriter.class, DocumentBuilderFactoryImpl.class, FuncLocalPart.class, FuncNot.class,
                         MyFacesContainerInitializer.class,
-                        RestoreViewSupport.class, UIViewRoot.class, ExceptionQueuedEvent.class,
+                        RestoreViewSupport.class, ExceptionQueuedEvent.class,
                         ExceptionQueuedEventContext.class,
                         PostAddToViewEvent.class, ComponentSystemEvent.class,
                         SystemEvent.class, QuarkusFactoryFinderProvider.class,
@@ -446,7 +445,7 @@ class MyFacesProcessor {
                 BeanELResolver.class, PreDestroyApplicationEvent.class, BeanEntry.class, MetaRulesetImpl.class));
 
         //classes with field reflection support
-        reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, FacesContextFactoryImpl.class));
+        reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, FacesContextFactoryImpl.class, UIViewRoot.class));
 
         reflectiveClass.produce(new ReflectiveClassBuildItem(false, true, "javax.faces.context._MyFacesExternalContextHelper"));
 
@@ -555,4 +554,18 @@ class MyFacesProcessor {
             }
         }
     }
+
+    @BuildStep
+    @Record(RUNTIME_INIT)
+    void runtimeReinit(BuildProducer<RuntimeReinitializedClassBuildItem> runtimeReinitProducer,
+            BuildProducer<RuntimeInitializedClassBuildItem> runtimeInitialized) {
+        /*
+         * runtimeReinitProducer
+         * .produce(new RuntimeReinitializedClassBuildItem(QuarkusFacesInitilializer.class.getName()));
+         * 
+         * runtimeInitialized
+         * .produce(new RuntimeInitializedClassBuildItem(QuarkusFacesInitilializer.class.getName()));
+         */
+    }
+
 }
